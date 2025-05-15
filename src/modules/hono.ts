@@ -1,7 +1,16 @@
 import { Snowflake } from '@sapphire/snowflake';
 import { Context, HonoRequest } from "hono"
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
+
 const app = new Hono()
+
+app.use('*', async (c, next) => {
+  const corsMiddlewareHandler = cors({
+    origin: "*",
+  })
+  return corsMiddlewareHandler(c, next)
+})
 
 const snowflake = new Snowflake(SNOWFLAKE_EPOCH);
 
@@ -44,14 +53,14 @@ export const AuthLevels = {
   ONLY_ADMIN: [AuthLevel.ADMIN],
 }
 
-function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), auth: AuthLevel[], path: string, func: HonoParams) {
+function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), auth: AuthLevel[], path: string, func: HonoParams, unlocks: number | null = null) {
   // console.log("Defining...", arguments, app)
   app[method](path, async (c: Context) => {
     let rid = String(snowflake.generate())
     let token = c.req.header("Authorization")?.split(" ")[1]
     let pack: RequestPack = {
       auth_level: AuthLevel.NONE,
-      rid: ''
+      rid
     }
     
     // Check Authentication Level Here :^)
@@ -64,7 +73,7 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
         }
       })
 
-      let json = await res.json()
+      let json: any = await res.json()
       if (json?.code == 0 && json?.message == "401: Unauthorized") {
         // ... erm...
       } else {
@@ -73,7 +82,13 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
       }
     }
 
-    if (auth.includes(pack.auth_level)) {
+    print(unlocks)
+    print(Date.now())
+
+    if (unlocks != null && unlocks > Date.now() && pack.auth_level != AuthLevel.ADMIN) {
+      c.status(403)
+      return c.json({error: "not available yet... sneaky", unlocks_in: unlocks - Date.now()})
+    } else if (auth.includes(pack.auth_level)) {
       let returnVal: any = await func(c.req, c, pack)
       if (returnVal != null && !(returnVal instanceof Error)) {
         return c.json(returnVal)
@@ -90,11 +105,11 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
   })
 }
 export const Pointer = {
-  GET: (auth_level: AuthLevel[], path: string, func: HonoParams) => {return base_enpoint("get", auth_level, path, func)},
-  POST: (auth_level: AuthLevel[], path: string, func: HonoParams) => {return base_enpoint("post", auth_level, path, func)},
-  PUT: (auth_level: AuthLevel[], path: string, func: HonoParams) => {return base_enpoint("put", auth_level, path, func)},
-  PATCH: (auth_level: AuthLevel[], path: string, func: HonoParams) => {return base_enpoint("patch", auth_level, path, func)},
-  DELETE: (auth_level: AuthLevel[], path: string, func: HonoParams) => {return base_enpoint("delete", auth_level, path, func)}
+  GET: (auth_level: AuthLevel[], path: string, func: HonoParams, unlocks: number | null = null) => {return base_enpoint("get", auth_level, path, func, unlocks)},
+  POST: (auth_level: AuthLevel[], path: string, func: HonoParams, unlocks: number | null = null) => {return base_enpoint("post", auth_level, path, func, unlocks)},
+  PUT: (auth_level: AuthLevel[], path: string, func: HonoParams, unlocks: number | null = null) => {return base_enpoint("put", auth_level, path, func, unlocks)},
+  PATCH: (auth_level: AuthLevel[], path: string, func: HonoParams, unlocks: number | null = null) => {return base_enpoint("patch", auth_level, path, func, unlocks)},
+  DELETE: (auth_level: AuthLevel[], path: string, func: HonoParams, unlocks: number | null = null) => {return base_enpoint("delete", auth_level, path, func, unlocks)}
 }
 
 
@@ -117,5 +132,10 @@ Pointer.GET(AuthLevels.ONLY_DISCORD, "/discord_only_endpoint", (req: HonoRequest
 Pointer.GET(AuthLevels.ONLY_ADMIN, "/admin_endpoint", (req: HonoRequest, c: Context, pack: RequestPack) => {
   return { api_version: "v1 (admin edition)", admin: (pack.auth_level == AuthLevel.ADMIN), rid: pack.rid}
 })
+
+// Testing out locked content
+Pointer.GET(AuthLevels.ALL, "/week_from_now", (req: HonoRequest, c: Context, pack: RequestPack) => {
+  return { api_version: "v1 (week from now edition)", rid: pack.rid}
+}, 1746739687224) // unlocks in a week
 
 export default app

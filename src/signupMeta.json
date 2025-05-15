@@ -1,0 +1,119 @@
+[
+  {
+    "id": "home",
+    "lines": [
+      "Welcome to the terminal where the [color=#9A6BFF]7TH ANNUAL[/color] BeepBox Tournament will be held!",
+      "What are you looking to do?..."
+    ],
+    "terminal_id": null,
+    "continue_override": null,
+    "continue_action": null,
+    "buttons": [
+      {"id": "home_signup", "text": "LOOKING TO PARTICIPATE!", "action": "verify_identity", "color": "#25F3FF"},
+      {"id": "home_about", "text": "WANNA KNOW MORE...", "action": "/about", "color": "#9A6BFF"},
+      {"id": "home_withdraw", "text": "WITHDRAW FROM TOURNAMENT", "action": "withdraw_confirm", "color": "#E03C28"}
+    ]
+  },
+  {
+    "id": "verify_identity",
+    "lines": [
+      "Great! Before you participate, I need to... [i]gather some information from you[/i]",
+      "Who are you?"
+    ],
+    "terminal_id": "discord",
+    "continue_override": null,
+    "continue_action": "modifier_introduction",
+    "buttons": []
+  },
+  {
+    "id": "already_verified",
+    "lines": [
+      "Great! It seems you are... [i]Already signed up!?...[/i]"
+    ],
+    "terminal_id": null,
+    "continue_override": "RETURN",
+    "continue_action": "home",
+    "buttons": []
+  },
+  {
+    "id": "modifier_introduction",
+    "lines": [
+      "Great! It seems you are... real enough!...",
+      "Before you're ready to participate though, you must come up with a random [color=#9A6BFF][i]noun[/i][/color], [color=#9A6BFF][i]verb[/i][/color], and [color=#9A6BFF][i]adjective[/i][/color] as part of our [color=#25F3FF][b]Modifier System[/b][/color]!"
+    ],
+    "terminal_id": null,
+    "continue_override": null,
+    "continue_action": "modifier_bonus_token_explaination",
+    "buttons": []
+  },
+  {
+    "id": "modifier_bonus_token_explaination",
+    "lines": [
+      "The [color=#25F3FF][b]Modifier System[/b][/color] are extra words you can add to a round’s prompt to make it more of a challenge that allows participants to earn a currency called [color=#7744FF]Bonus Tokens[/color]!",
+      "[color=#7744FF]Bonus Tokens[/color] are fun to try to collect! They’ll have their own leaderboard that ranks people who go the extra mile for participation- [u]but they also determine the winner in rare cases of a tie in points![/u]"
+    ],
+    "terminal_id": null,
+    "continue_override": null,
+    "continue_action": "input_noun",
+    "buttons": []
+  },
+  {
+    "id": "input_noun",
+    "lines": [
+      "Choose a random noun!"
+    ],
+    "terminal_id": "noun",
+    "continue_override": null,
+    "continue_action": "input_verb",
+    "buttons": []
+  },
+  {
+    "id": "input_verb",
+    "lines": [
+      "Choose a random verb!"
+    ],
+    "terminal_id": "verb",
+    "continue_override": null,
+    "continue_action": "input_adjective",
+    "buttons": []
+  },
+  {
+    "id": "input_adjective",
+    "lines": [
+      "Choose a random adjective!"
+    ],
+    "terminal_id": "adjective",
+    "continue_override": null,
+    "continue_action": "signup_complete",
+    "buttons": []
+  },
+  {
+    "id": "signup_complete",
+    "lines": [
+      "Okay! That’s all the information we’ll be needing for your participation in this.. competition",
+      "Thank you for time, and we’ll be seeing you in approximately [color=#9A6BFF]${TIME_STRING}[/color]..."
+    ],
+    "terminal_id": null,
+    "continue_override": "RETURN",
+    "continue_action": "home",
+    "buttons": []
+  },
+  {
+    "id": "withdraw_confirm",
+    "lines": [
+      "Are you sure you want to withdraw from the tournament?... [color=#ffffff7c][i](You can always sign up again BEFORE the start of the tournament!)[/i][/color]"
+    ],
+    "terminal_id": null,
+    "continue_override": null,
+    "continue_action": null,
+    "buttons": [
+      {
+        "id": "withdraw_yes",
+        "text": "YES",
+        "action": "home",
+        "color": "#E03C28"
+      },
+      { "id": "withdraw_cancel", "text": "CANCEL", "action": "home", "color": "#454545"}
+    ]
+  }
+]

@@ -5,10 +5,13 @@ import "./extends/print"
 import "./extends/epoch"
 
 // Endpoints//
-// import "./endpoint/submissions"
-// import "./endpoint/submissions"
+import "./endpoints/rounds"
+import "./endpoints/signup"
+import "./endpoints/state"
+import "./endpoints/discord"
+// import "./endpoints/submissions"
 
-// Modules
+// ModulesZ
 import app from "./modules/hono"
 
 export default app
