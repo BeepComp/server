@@ -22,6 +22,18 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 
 
+//// MODIFIERS TABLE
+
+export const modifiers = pgTable('modifiers', {
+	id: text('id').primaryKey(),
+  type: text({enum: ["noun", "verb", "adjective"]}),
+  text: text("text"),
+  submitter: text("submitter").references(() => users.id, {onDelete: 'cascade'}),
+});
+
+
+
+
 //// SUBMISSIONS TABLE
 
 export const submissions = pgTable('submissions', {
@@ -32,6 +44,7 @@ export const submissions = pgTable('submissions', {
   player_link: text("player_link"),
   round: integer("round"),
   challengerId: text("challengerId"),
+  submitter: text("submitter").references(() => users.id, {onDelete: 'cascade'})
 });
 
 export const submissionsRelations = relations(submissions, ({ one, many }) => ({
@@ -49,10 +62,10 @@ export const usersToSubmissions = pgTable(
   {
     userId: text('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, {onDelete: 'cascade'}),
     submissionId: text('submission_id')
       .notNull()
-      .references(() => submissions.id),
+      .references(() => submissions.id, {onDelete: 'cascade'}),
   },
   (t) => [
 		primaryKey({ columns: [t.userId, t.submissionId] })
@@ -99,10 +112,10 @@ export const usersToOkays = pgTable(
   {
     userId: text('user_id')
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, {onDelete: 'cascade'}),
     okayId: text('okays_id')
       .notNull()
-      .references(() => okays.id),
+      .references(() => okays.id, {onDelete: 'cascade'}),
   },
   (t) => [
 		primaryKey({ columns: [t.userId, t.okayId] })

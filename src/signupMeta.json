@@ -2,8 +2,9 @@
   {
     "id": "home",
     "lines": [
-      "Welcome to the terminal where the [color=#9A6BFF]7TH ANNUAL[/color] BeepBox Tournament will be held!",
-      "What are you looking to do?..."
+      "Thank you, valued subject, for joining the [color=#9A6BFF]MindGames™️[/color] - the world's most viewed, most innovative sporting event known to man!",
+      "[i][color=#ffffff7c]MindCorp™️ is not responsible for lost or stolen memories.[/color][/i]",
+      "[color=#ffffff7c](This is the sign-up page for the 7th Beepbox Discord Tournament. This page will be open until June 1st, and the event will last until the end of July.)[/color]"
     ],
     "terminal_id": null,
     "continue_override": null,
@@ -18,7 +19,7 @@
     "id": "verify_identity",
     "lines": [
       "Great! Before you participate, I need to... [i]gather some information from you[/i]",
-      "Who are you?"
+      "[i]...Who are you?[/i]"
     ],
     "terminal_id": "discord",
     "continue_override": null,
@@ -28,7 +29,7 @@
   {
     "id": "already_verified",
     "lines": [
-      "Great! It seems you are... [i]Already signed up!?...[/i]"
+      "...It seems you are... [i]Already signed up!?...[/i]"
     ],
     "terminal_id": null,
     "continue_override": "RETURN",
@@ -38,13 +39,26 @@
   {
     "id": "modifier_introduction",
     "lines": [
-      "Great! It seems you are... real enough!...",
-      "Before you're ready to participate though, you must come up with a random [color=#9A6BFF][i]noun[/i][/color], [color=#9A6BFF][i]verb[/i][/color], and [color=#9A6BFF][i]adjective[/i][/color] as part of our [color=#25F3FF][b]Modifier System[/b][/color]!"
+      "...It seems you are... [i]real enough[/i]...",
+      "[color=#ffffff7c]You are about to be prompted to come up and submit a [color=#25F3FF][b]Modifier[/b][/color], would you like to go over what they are and how they work?[/color]"
     ],
     "terminal_id": null,
     "continue_override": null,
-    "continue_action": "modifier_bonus_token_explaination",
-    "buttons": []
+    "continue_action": null,
+    "buttons": [
+      {
+        "id": "modifier_intro_what",
+        "text": "YES, WHAT ARE MODIFIERS?",
+        "action": "modifier_bonus_token_explaination",
+        "color": "#ffe737"
+      },
+      {
+        "id": "modifier_intro_next",
+        "text": "NO, I'M IN A RUSH",
+        "action": "input_noun",
+        "color": "#454545"
+      }
+    ]
   },
   {
     "id": "modifier_bonus_token_explaination",
@@ -53,26 +67,17 @@
       "[color=#7744FF]Bonus Tokens[/color] are fun to try to collect! They’ll have their own leaderboard that ranks people who go the extra mile for participation- [u]but they also determine the winner in rare cases of a tie in points![/u]"
     ],
     "terminal_id": null,
-    "continue_override": null,
+    "continue_override": "SUBMIT MODIFIERS",
     "continue_action": "input_noun",
     "buttons": []
   },
   {
     "id": "input_noun",
     "lines": [
-      "Choose a random noun!"
+      "[i]Focus on your memories. What do you remember of the world you knew?...[/i]",
+      "[b]Submit a noun[/b]"
     ],
     "terminal_id": "noun",
-    "continue_override": null,
-    "continue_action": "input_verb",
-    "buttons": []
-  },
-  {
-    "id": "input_verb",
-    "lines": [
-      "Choose a random verb!"
-    ],
-    "terminal_id": "verb",
     "continue_override": null,
     "continue_action": "input_adjective",
     "buttons": []
@@ -80,18 +85,49 @@
   {
     "id": "input_adjective",
     "lines": [
-      "Choose a random adjective!"
+      "[i]Focus on the details. The colours, feelings, and sensations only you can understand...[/i]",
+      "[b]Submit an adjective[/b]"
     ],
     "terminal_id": "adjective",
     "continue_override": null,
-    "continue_action": "signup_complete",
+    "continue_action": "input_verb",
     "buttons": []
+  },
+  {
+    "id": "input_verb",
+    "lines": [
+      "[i]Focus on what you were. The things you were capable of while trapped in your dying flesh body...[/i]",
+      "[b]Submit a verb[/b]"
+    ],
+    "terminal_id": "verb",
+    "continue_override": null,
+    "continue_action": "signup_confirm",
+    "buttons": []
+  },
+  {
+    "id": "signup_confirm",
+    "lines": [
+      "You are ${DISCORD_USER} whose modifiers are [color=#9A6BFF][i]${NOUN_STRING}[/i][/color] (noun), [color=#9A6BFF][i]${VERB_STRING}[/i][/color] (verb), [color=#9A6BFF][i]${ADJECTIVE_STRING}[/i][/color] (adjective)...",
+      "Is this information accurate?"
+    ],
+    "terminal_id": null,
+    "continue_override": null,
+    "continue_action": null,
+    "buttons": [
+      {
+        "id": "signup_confirm_yes",
+        "text": "YES",
+        "action": "signup_complete",
+        "color": "#8cd612"
+      },
+      { "id": "signup_confirm_cancel", "text": "CANCEL", "action": "home", "color": "#454545"}
+    ]
   },
   {
     "id": "signup_complete",
     "lines": [
-      "Okay! That’s all the information we’ll be needing for your participation in this.. competition",
-      "Thank you for time, and we’ll be seeing you in approximately [color=#9A6BFF]${TIME_STRING}[/color]..."
+      "Assimilation complete. Thank you, ${DISCORD_DISPLAY_NAME}. Please remain calm while your consciousness is suspended.",
+      "[i]You will be restored when you are needed...[/i] Do not disappoint [u]Us.[/u]"
     ],
     "terminal_id": null,
     "continue_override": "RETURN",

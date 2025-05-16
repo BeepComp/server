@@ -2,6 +2,10 @@ import { Snowflake } from '@sapphire/snowflake';
 import { Context, HonoRequest } from "hono"
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { DB } from './db';
+import { eq } from 'drizzle-orm';
+import { users } from '../db/schema';
+import { User } from "@beepcomp/core"
 
 const app = new Hono()
 
@@ -16,28 +20,7 @@ const snowflake = new Snowflake(SNOWFLAKE_EPOCH);
 
 export interface RequestPack {
   auth_level: AuthLevel;
-  user?: { // <- yeah I sat here and typed out the discord user object interface, don't worry about it
-    id: string;
-    username: string;
-    discriminator: string;
-    global?: string;
-    avatar?: string;
-    bot: boolean;
-    mfa_enabled: boolean;
-    banner?: string;
-    accent_color?: number;
-    locale: string;
-    verified: boolean;
-    email?: string;
-    flags: number;
-    prenium_type: number;
-    public_flags: number;
-    avatar_decoration_data?: {
-      asset: string;
-      sku_id: string;
-    }
-
-  };
+  user?: User;
   rid: string;
 }
 type HonoParams = (req: HonoRequest, c: Context, pack: RequestPack) => void
@@ -80,6 +63,17 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
         pack.auth_level = AuthLevel.DISCORD
         pack.user = json
       }
+    }
+
+    // Attaching DB user data
+    if (pack.user) {
+      const db = DB(c)
+
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, pack.user.id)
+      })
+
+      pack.user.participant = (user?.participant || false)
     }
 
     print(unlocks)

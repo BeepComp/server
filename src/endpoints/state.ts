@@ -22,6 +22,9 @@ Pointer.GET(AuthLevels.ALL, `/state`, (req, c, pack) => {
   }
 
   if (!return_obj.started) { return_obj["signupMeta"] = metadata }
+  if (pack.user) {
+    return_obj["user"] = pack.user
+  }
   
   return return_obj
 })

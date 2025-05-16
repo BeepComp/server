@@ -5,9 +5,13 @@ import "./extends/print"
 import "./extends/epoch"
 
 // Endpoints//
-import "./endpoints/rounds"
-import "./endpoints/signup"
 import "./endpoints/state"
+
+import "./endpoints/users"
+import "./endpoints/rounds"
+
+import "./endpoints/signup"
+
 import "./endpoints/discord"
 // import "./endpoints/submissions"
 
