@@ -11,7 +11,7 @@
     "continue_action": null,
     "buttons": [
       {"id": "home_signup", "text": "LOOKING TO PARTICIPATE!", "action": "verify_identity", "color": "#25F3FF"},
-      {"id": "home_about", "text": "WANNA KNOW MORE...", "action": "/about", "color": "#9A6BFF"},
+      {"id": "home_about", "text": "WANNA KNOW MORE...", "action": "https://planet-bluto.net/april_fools/april_fools.mp4", "color": "#9A6BFF"},
       {"id": "home_withdraw", "text": "WITHDRAW FROM TOURNAMENT", "action": "withdraw_confirm", "color": "#E03C28"}
     ]
   },
@@ -40,7 +40,7 @@
     "id": "modifier_introduction",
     "lines": [
       "...It seems you are... [i]real enough[/i]...",
-      "[color=#ffffff7c]You are about to be prompted to come up and submit a [color=#25F3FF][b]Modifier[/b][/color], would you like to go over what they are and how they work?[/color]"
+      "[color=#ffffff7c]You are about to be prompted to come up and submit a [color=#25F3FF][b][wavy]Modifier[/wavy][/b][/color], would you like to go over what they are and how they work?[/color]"
     ],
     "terminal_id": null,
     "continue_override": null,
@@ -63,8 +63,8 @@
   {
     "id": "modifier_bonus_token_explaination",
     "lines": [
-      "The [color=#25F3FF][b]Modifier System[/b][/color] are extra words you can add to a round’s prompt to make it more of a challenge that allows participants to earn a currency called [color=#7744FF]Bonus Tokens[/color]!",
-      "[color=#7744FF]Bonus Tokens[/color] are fun to try to collect! They’ll have their own leaderboard that ranks people who go the extra mile for participation- [u]but they also determine the winner in rare cases of a tie in points![/u]"
+      "The [color=#25F3FF][b][wavy]Modifier System[/wavy][/b][/color] are extra words you can add to a round’s prompt to make it more of a challenge that allows participants to earn a currency called [color=#7744FF][wavy]Bonus Tokens[/wavy][/color]!",
+      "[color=#7744FF][wavy]Bonus Tokens[/wavy][/color] are fun to try to collect! They’ll have their own leaderboard that ranks people who go the extra mile for participation- [wavy]but they also determine the winner in rare cases of a tie in points![/wavy]"
     ],
     "terminal_id": null,
     "continue_override": "SUBMIT MODIFIERS",
@@ -107,7 +107,7 @@
   {
     "id": "signup_confirm",
     "lines": [
-      "You are ${DISCORD_USER} whose modifiers are [color=#9A6BFF][i]${NOUN_STRING}[/i][/color] (noun), [color=#9A6BFF][i]${VERB_STRING}[/i][/color] (verb), [color=#9A6BFF][i]${ADJECTIVE_STRING}[/i][/color] (adjective)...",
+      "You are [color=#9A6BFF][wavy]${DISCORD_USER}[/wavy][/color] whose modifiers are [color=#9A6BFF][wavy]${NOUN_STRING}[/wavy][/color] [color=#ffffff7c][i](noun)[/i][/color], [color=#9A6BFF][wavy]${ADJECTIVE_STRING}[/wavy][/color] [color=#ffffff7c][i](adjective)[/i][/color], [color=#9A6BFF][wavy]${VERB_STRING}[/wavy][/color] [color=#ffffff7c][i](verb)[/i][/color]...",
       "Is this information accurate?"
     ],
     "terminal_id": null,
