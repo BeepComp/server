@@ -8,7 +8,7 @@ import { users } from '../db/schema';
 import { User } from "@beepcomp/core"
 
 const app = new Hono()
-
+https://w4lwz7j7-8787.use.devtunnels.ms/
 app.use('*', async (c, next) => {
   const corsMiddlewareHandler = cors({
     origin: "*",
