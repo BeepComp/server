@@ -16,6 +16,7 @@ import "./endpoints/discord"
 // import "./endpoints/submissions"
 
 // ModulesZ
+// import "./modules/discord"
 import app from "./modules/hono"
 
 export default app

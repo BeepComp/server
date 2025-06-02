@@ -5,22 +5,29 @@ import { cors } from 'hono/cors'
 import { DB } from './db';
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema';
-import { User } from "@beepcomp/core"
+import { User } from "@beepcomp/core";
+import { DiscordBot } from './discord';
 
 const app = new Hono()
-https://w4lwz7j7-8787.use.devtunnels.ms/
-app.use('*', async (c, next) => {
-  const corsMiddlewareHandler = cors({
-    origin: "*",
-  })
-  return corsMiddlewareHandler(c, next)
-})
+// https://w4lwz7j7-8787.use.devtunnels.ms/
+// app.use('*', async (c, next) => {
+//   const corsMiddlewareHandler = cors({
+//     origin: ["beepcomp.co", "*"],
+//   })
+//   return corsMiddlewareHandler(c, next)
+// })
+
+app.use(cors({
+  origin: "*",
+  allowHeaders: ["*"]
+}))
 
 const snowflake = new Snowflake(SNOWFLAKE_EPOCH);
 
 export interface RequestPack {
   auth_level: AuthLevel;
   user?: User;
+  auth_token?: string;
   rid: string;
 }
 type HonoParams = (req: HonoRequest, c: Context, pack: RequestPack) => void
@@ -43,7 +50,8 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
     let token = c.req.header("Authorization")?.split(" ")[1]
     let pack: RequestPack = {
       auth_level: AuthLevel.NONE,
-      rid
+      rid,
+      auth_token: token
     }
     
     // Check Authentication Level Here :^)
@@ -57,6 +65,7 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
       })
 
       let json: any = await res.json()
+      print("Discord Result: ", json)
       if (json?.code == 0 && json?.message == "401: Unauthorized") {
         // ... erm...
       } else {
@@ -131,5 +140,12 @@ Pointer.GET(AuthLevels.ONLY_ADMIN, "/admin_endpoint", (req: HonoRequest, c: Cont
 Pointer.GET(AuthLevels.ALL, "/week_from_now", (req: HonoRequest, c: Context, pack: RequestPack) => {
   return { api_version: "v1 (week from now edition)", rid: pack.rid}
 }, 1746739687224) // unlocks in a week
+
+// Testing out locked content
+Pointer.GET(AuthLevels.ALL, "/discord_test", async (req: HonoRequest, c: Context, pack: RequestPack) => {
+  let msg = await DiscordBot.send_message(`Hai guys! :3\n-# someone accessed the API point`, false)
+  print( msg )
+  return { api_version: "v1 (pingas!)", rid: pack.rid, msg }
+})
 
 export default app

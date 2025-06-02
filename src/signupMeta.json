@@ -37,6 +37,33 @@
     "buttons": []
   },
   {
+    "id": "missing_server",
+    "lines": [
+      "...It seems you are... [b]Not in the right server!?[/b]",
+      "In order to participate, you must join the [b]Beepbox Discord[/b] server!"
+    ],
+    "terminal_id": null,
+    "continue_override": null,
+    "continue_action": null,
+    "buttons": [
+      {"id": "missing_server_join_manual", "text": "JOIN SERVER", "action": "waiting_to_join_server", "color": "#25F3FF"},
+      {"id": "missing_server_cancel", "text": "CANCEL", "action": "home", "color": "#E03C28"}
+    ]
+  },
+  {
+    "id": "waiting_to_join_server",
+    "lines": [
+      "[wavy]Thank you for joining the [b]Beepbox Discord[/b] server![/wavy]",
+      "Press the button below to verify you identity again [b]once you have join the server![/b]"
+    ],
+    "terminal_id": null,
+    "continue_override": null,
+    "continue_action": null,
+    "buttons": [
+      {"id": "waiting_to_join_server_retry", "text": "RETRY VERIFICATION", "action": "verify_identity", "color": "#25F3FF"}
+    ]
+  },
+  {
     "id": "modifier_introduction",
     "lines": [
       "...It seems you are... [i]real enough[/i]...",
@@ -120,6 +147,7 @@
         "action": "signup_complete",
         "color": "#8cd612"
       },
+      { "id": "signup_confirm_redo", "text": "REDO MODIFIERS", "action": "input_noun", "color": "#ffbb31"},
       { "id": "signup_confirm_cancel", "text": "CANCEL", "action": "home", "color": "#454545"}
     ]
   },

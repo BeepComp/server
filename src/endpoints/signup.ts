@@ -1,11 +1,28 @@
 import { modifiers, users } from "../db/schema";
 import { DB } from "../modules/db";
+import { DiscordBot } from "../modules/discord";
 import { AuthLevels, Pointer } from "../modules/hono";
 import snowflake from "../modules/snowflake";
 import metadata from "../signupMeta.json"
 
 Pointer.GET(AuthLevels.ALL, `/signup/meta`, (req, c, pack) => {
   return metadata
+})
+
+Pointer.POST(AuthLevels.ONLY_DISCORD, `/join_beepcord`, async (req, c, pack) => {
+  if (pack.user == null) { return false }
+  /// /guilds/{guild.id}/members/{user.id}
+  let res = await fetch(`https://discord.com/api/v10/guilds/${process.env.MAIN_SERVER}/members/${pack.user.id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${pack.auth_token}`
+    }
+  })
+
+  let json = await res.json()
+  print(json)
+
+  return true
 })
 
 Pointer.POST(AuthLevels.ONLY_DISCORD, `/signup`, async (req, c, pack) => {
@@ -42,6 +59,10 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/signup`, async (req, c, pack) => {
     promVerbModifier,
     promAdjectiveModifier
   ])
+
+  let res1 = DiscordBot.send_message(`### Welcome in, <@${pack.user.id}>!`, false)
+  let res2 = DiscordBot.give_role(pack.user.id)
+  await Promise.all([res1, res2])
 
   return [newUser].concat(res)
 })

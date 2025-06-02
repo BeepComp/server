@@ -3,6 +3,7 @@ import { users, modifiers } from "../db/schema"
 import { DB } from "../modules/db"
 import { Pointer, AuthLevels } from "../modules/hono"
 import snowflake from "../modules/snowflake"
+import { DiscordBot } from "../modules/discord"
 
 Pointer.GET(AuthLevels.ONLY_DISCORD, `/users/@me`, async (req, c, pack) => {
   if (pack.user == null) { return new Error("User Object Missing?") }
@@ -21,6 +22,8 @@ Pointer.DELETE(AuthLevels.ONLY_DISCORD, `/users/@me`, async (req, c, pack) => {
 
   let res = await db.delete(users).where(eq(users.id, pack.user.id))
   print(res)
+
+  await DiscordBot.remove_role(pack.user.id)
 
   return {success: "probably"}
 })
