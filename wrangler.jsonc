@@ -6,6 +6,15 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+  "routes": [
+    {
+      "pattern": "api.beepcomp.co",
+      "custom_domain": true
+    }
+  ],
+  "dev": {
+    "ip": "0.0.0.0"
+  }
   // "vars": {
   //   "MY_VAR": "my-variable"
   // },

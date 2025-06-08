@@ -19,7 +19,7 @@ const app = new Hono()
 
 app.use(cors({
   origin: "*",
-  allowHeaders: ["*"]
+  allowHeaders: ["*", "Authorization"]
 }))
 
 const snowflake = new Snowflake(SNOWFLAKE_EPOCH);

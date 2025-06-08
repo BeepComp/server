@@ -11,14 +11,14 @@
     "continue_action": null,
     "buttons": [
       {"id": "home_signup", "text": "LOOKING TO PARTICIPATE!", "action": "verify_identity", "color": "#25F3FF"},
-      {"id": "home_about", "text": "WANNA KNOW MORE...", "action": "https://planet-bluto.net/april_fools/april_fools.mp4", "color": "#9A6BFF"},
+      {"id": "home_about", "text": "WANNA KNOW MORE...", "action": "https://about.beepcomp.co/", "color": "#9A6BFF"},
       {"id": "home_withdraw", "text": "WITHDRAW FROM TOURNAMENT", "action": "withdraw_confirm", "color": "#E03C28"}
     ]
   },
   {
     "id": "verify_identity",
     "lines": [
-      "Great! Before you participate, I need to... [i]gather some information from you[/i]",
+      "Great! Before you participate, We need to... [i]gather some information from you_[/i]",
       "[i]...Who are you?[/i]"
     ],
     "terminal_id": "discord",
@@ -74,16 +74,16 @@
     "continue_action": null,
     "buttons": [
       {
-        "id": "modifier_intro_what",
+        "id": "modifier_intro_what_is_modifiers",
         "text": "YES, WHAT ARE MODIFIERS?",
-        "action": "modifier_bonus_token_explaination",
+        "action": "https://about.beepcomp.co/?scrollTo=prompt-modifiers-(new)",
         "color": "#ffe737"
       },
       {
         "id": "modifier_intro_next",
-        "text": "NO, I'M IN A RUSH",
+        "text": "SUBMIT MODIFIERS",
         "action": "input_noun",
-        "color": "#454545"
+        "color": "#8cd612"
       }
     ]
   },
