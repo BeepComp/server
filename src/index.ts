@@ -4,6 +4,8 @@ import "dotenv/config"
 import "./extends/print"
 import "./extends/epoch"
 
+import "./modules/setup"
+
 // Endpoints//
 import "./endpoints/state"
 
@@ -13,7 +15,7 @@ import "./endpoints/rounds"
 import "./endpoints/signup"
 
 import "./endpoints/discord"
-// import "./endpoints/submissions"
+import "./endpoints/submissions"
 
 // ModulesZ
 // import "./modules/discord"

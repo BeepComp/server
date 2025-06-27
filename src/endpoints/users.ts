@@ -23,7 +23,10 @@ Pointer.DELETE(AuthLevels.ONLY_DISCORD, `/users/@me`, async (req, c, pack) => {
   let res = await db.delete(users).where(eq(users.id, pack.user.id))
   print(res)
 
-  await DiscordBot.remove_role(pack.user.id)
+  let guild_res = await pack.request_guilds()
+  if (guild_res.main_server) {
+    await DiscordBot.remove_role(pack.user.id)
+  }
 
   return {success: "probably"}
 })

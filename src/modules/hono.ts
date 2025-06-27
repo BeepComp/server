@@ -6,7 +6,8 @@ import { DB } from './db';
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema';
 import { User } from "@beepcomp/core";
-import { DiscordBot } from './discord';
+import { DiscordBot, DiscordWebHook } from './discord';
+import { pretext } from './setup';
 
 const app = new Hono()
 // https://w4lwz7j7-8787.use.devtunnels.ms/
@@ -29,6 +30,8 @@ export interface RequestPack {
   user?: User;
   auth_token?: string;
   rid: string;
+
+  request_guilds: () => Promise<{in_servers: string[], main_server: boolean}>;
 }
 type HonoParams = (req: HonoRequest, c: Context, pack: RequestPack) => void
 enum AuthLevel {
@@ -51,13 +54,14 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
     let pack: RequestPack = {
       auth_level: AuthLevel.NONE,
       rid,
-      auth_token: token
+      auth_token: token,
+      request_guilds: async () => {return {in_servers: [], main_server: false}}
     }
     
     // Check Authentication Level Here :^)
     if (token == c.env.ADMIN_TOKEN) { // so ez
       pack.auth_level = AuthLevel.ADMIN
-    } else {
+    } else { // DISCORD AUTHENTICATION
       let res = await fetch("https://discord.com/api/v10/users/@me", {
         headers: {
           Authorization: `Bearer ${token}`
@@ -66,6 +70,7 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
 
       let json: any = await res.json()
       print("Discord Result: ", json)
+      // print("flags: ", flags)
       if (json?.code == 0 && json?.message == "401: Unauthorized") {
         // ... erm...
       } else {
@@ -78,20 +83,54 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
     if (pack.user) {
       const db = DB(c)
 
+      print("is it the database?")
       const user = await db.query.users.findFirst({
         where: eq(users.id, pack.user.id)
       })
 
       pack.user.participant = (user?.participant || false)
+
+      //// SERVER CHECKING
+      pack.request_guilds = (async () => {
+        let return_obj: {in_servers: string[], main_server: boolean} = {
+          in_servers: [],
+          main_server: false
+        }
+        await (new Promise<void>((res, rej) => setTimeout(() => {res()}, 1000))) // no rate limit pls...
+        print("is it the discord guild fetch?")
+        let server_res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+          headers: {
+            Authorization: `Bearer ${pack.auth_token}`
+          }
+        })
+
+        let json: any[] = await server_res.json()
+        print("guild res: ", json)
+        
+        if (Array.isArray(json)) {
+          let VALID_SERVERS = (process.env.VALID_SERVERS?.split(",") || [])
+          return_obj["in_servers"] = json.map((guild: any) => guild.id).filter( id => VALID_SERVERS.includes(id))
+          return_obj["main_server"] = return_obj["in_servers"].includes(process.env.MAIN_SERVER)
+        }
+
+        print("in_servers: ", return_obj.in_servers.join(", "))
+        print("main_server: ", return_obj.main_server)
+
+        return return_obj
+      })
     }
 
     print(unlocks)
     print(Date.now())
+    print("REQUEST PACK: ", pack)
 
     if (unlocks != null && unlocks > Date.now() && pack.auth_level != AuthLevel.ADMIN) {
       c.status(403)
       return c.json({error: "not available yet... sneaky", unlocks_in: unlocks - Date.now()})
     } else if (auth.includes(pack.auth_level)) {
+      // Setup Pretext yers....
+      await pretext()
+
       let returnVal: any = await func(c.req, c, pack)
       if (returnVal != null && !(returnVal instanceof Error)) {
         return c.json(returnVal)
@@ -117,8 +156,9 @@ export const Pointer = {
 
 
 
-Pointer.GET(AuthLevels.ALL, "/", (req: HonoRequest, c: Context, rid) => {
-  return { api_version: "v1", rid }
+Pointer.GET(AuthLevels.ALL, "/", (req: HonoRequest, c: Context, pack: RequestPack) => {
+  let TOURNAMENT_EPOCH = Number(process.env.TOURNAMENT_EPOCH)
+  return { api_version: "v1", rid: pack.rid, epoch: TOURNAMENT_EPOCH, time_until_start: (Date.now() - TOURNAMENT_EPOCH) }
 })
 
 
@@ -141,11 +181,18 @@ Pointer.GET(AuthLevels.ALL, "/week_from_now", (req: HonoRequest, c: Context, pac
   return { api_version: "v1 (week from now edition)", rid: pack.rid}
 }, 1746739687224) // unlocks in a week
 
-// Testing out locked content
-Pointer.GET(AuthLevels.ALL, "/discord_test", async (req: HonoRequest, c: Context, pack: RequestPack) => {
-  let msg = await DiscordBot.send_message(`Hai guys! :3\n-# someone accessed the API point`, false)
-  print( msg )
-  return { api_version: "v1 (pingas!)", rid: pack.rid, msg }
-})
+// Testing out sending Discord Messages
+// Pointer.GET(AuthLevels.ALL, "/discord_test", async (req: HonoRequest, c: Context, pack: RequestPack) => {
+//   let msg = await DiscordBot.send_message(`Hai guys! :3\n-# someone accessed the API point`, false)
+//   print( msg )
+//   return { api_version: "v1 (pingas!)", rid: pack.rid, msg }
+// })
+
+// Testing out sending Discord Messages (WebHook)
+// Pointer.GET(AuthLevels.ALL, "/discord_webhook_test", async (req: HonoRequest, c: Context, pack: RequestPack) => {
+//   let msg = await DiscordWebHook.send_message(`Hai guys! :3\n-# someone accessed the API point`)
+//   print( msg )
+//   return { api_version: "v1 (pingas!)", rid: pack.rid, msg }
+// })
 
 export default app

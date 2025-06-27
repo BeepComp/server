@@ -20,7 +20,7 @@ Pointer.GET(AuthLevels.ALL, `/state`, async (req, c, pack) => {
   let return_obj: any = {
     serverTime: Date.now(),
     started: (currentRound != null),
-    currentRound: (currentRound == null ? null : Object.assign({id}, currentRound)),
+    currentRound: id,
   }
 
   // User Participant Stuff
@@ -30,21 +30,8 @@ Pointer.GET(AuthLevels.ALL, `/state`, async (req, c, pack) => {
   }
 
   // In Valid Servers for Participation?
-  return_obj["server_valid"] = false
-  
-  let res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
-    headers: {
-      Authorization: `Bearer ${pack.auth_token}`
-    }
-  })
-
-  let json: any[] = await res.json()
-  
-  if (Array.isArray(json)) {
-    let VALID_SERVERS = (process.env.VALID_SERVERS?.split(",") || [])
-    let server_valid = json.map((guild: any) => guild.id).some( (id: string) =>  VALID_SERVERS.includes(id))
-    return_obj["server_valid"] = server_valid
-  }
+  let {in_servers} = await pack.request_guilds()
+  return_obj["server_valid"] = (in_servers.length > 0)
   
   return return_obj
 })

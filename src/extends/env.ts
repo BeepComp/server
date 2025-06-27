@@ -15,6 +15,8 @@ export interface IProcessEnv {
 
   MAIN_SERVER: string;
   VALID_SERVERS: string;
+  COOL_CHAT_WEBHOOK: string;
+  COOL_ANNOUNCEMENT_WEBHOOK: string;
 }
 
 declare global {

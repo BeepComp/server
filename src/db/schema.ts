@@ -15,7 +15,9 @@ export const users = pgTable('users', {
 export const usersRelations = relations(users, ({ many }) => ({
 	submissions: many(usersToSubmissions),
   okays: many(usersToOkays, {relationName: "okays"}),
-  left_okays: many(okays, {relationName: "left_okays"})
+  left_okays: many(okays, {relationName: "left_okays"}),
+  incoming_requests: many(requests, {relationName: "receiving"}),
+  outgoing_requests: many(requests, {relationName: "sending"}),
   // bonus_tokens: many(bonus_tokens)
 }));
 
@@ -31,6 +33,11 @@ export const modifiers = pgTable('modifiers', {
   submitter: text("submitter").references(() => users.id, {onDelete: 'cascade'}),
 });
 
+export const modifiersRelations = relations(modifiers, ({ many }) => ({
+	submissions: many(modifiersToSubmissions),
+  requests: many(requests)
+  // bonus_tokens: many(bonus_tokens)
+}));
 
 
 
@@ -38,7 +45,7 @@ export const modifiers = pgTable('modifiers', {
 
 export const submissions = pgTable('submissions', {
 	id: text('id').primaryKey(),
-	draft: boolean("draft"),
+	draft: boolean("draft").default(false),
   title: text("title"),
   link: text("link"),
   player_link: text("player_link"),
@@ -47,9 +54,11 @@ export const submissions = pgTable('submissions', {
   submitter: text("submitter").references(() => users.id, {onDelete: 'cascade'})
 });
 
+// submissions relations
 export const submissionsRelations = relations(submissions, ({ one, many }) => ({
 	authors: many(usersToSubmissions),
   okays: many(okays),
+  modifiers: many(modifiersToSubmissions),
   challenger: one(users, {
     fields: [submissions.challengerId],
     references: [users.id],
@@ -57,6 +66,7 @@ export const submissionsRelations = relations(submissions, ({ one, many }) => ({
   }),
 }));
 
+// submissions < - > users
 export const usersToSubmissions = pgTable(
   'users_to_submissions',
   {
@@ -83,6 +93,92 @@ export const usersToSubmissionsRelations = relations(usersToSubmissions, ({ one 
   }),
 }));
 
+// submissions < - > modifiers
+export const modifiersToSubmissions = pgTable(
+  'modifiers_to_submissions',
+  {
+    modifierId: text('modifier_id')
+      .notNull()
+      .references(() => modifiers.id, {onDelete: 'cascade'}),
+    submissionId: text('submission_id')
+      .notNull()
+      .references(() => submissions.id, {onDelete: 'cascade'}),
+  },
+  (t) => [
+		primaryKey({ columns: [t.modifierId, t.submissionId] })
+	],
+);
+
+export const modifiersToSubmissionsRelations = relations(modifiersToSubmissions, ({ one }) => ({
+  submission: one(submissions, {
+    fields: [modifiersToSubmissions.submissionId],
+    references: [submissions.id],
+  }),
+  modifier: one(modifiers, {
+    fields: [modifiersToSubmissions.modifierId],
+    references: [modifiers.id],
+  }),
+}));
+
+
+
+
+//// REQUEST TABLE
+
+export const requests = pgTable('requests', {
+	id: text('id').primaryKey(),
+	type: text('type', {enum: ["battle", "collab"]}),
+  submissionId: text("submission_id").references(() => submissions.id, {onDelete: 'cascade'}),
+  round: integer("round"),
+  sendingId: text("sending_id").references(() => users.id, {onDelete: 'cascade'}),
+  receivingId: text("receiving_id").references(() => users.id, {onDelete: 'cascade'}),
+})
+
+// requests relations
+export const requestsRelations = relations(requests, ({ one, many }) => ({
+	submission: one(submissions, {
+    fields: [requests.submissionId],
+    references: [submissions.id],
+    relationName: "submission"
+  }),
+	sending: one(users, {
+    fields: [requests.sendingId],
+    references: [users.id],
+    relationName: "sending"
+  }),
+	receiving: one(users, {
+    fields: [requests.receivingId],
+    references: [users.id],
+    relationName: "receiving"
+  })
+}));
+
+// // requests < - > users
+// export const usersToRequests = pgTable(
+//   'users_to_requests',
+//   {
+//     userId: text('user_id')
+//       .notNull()
+//       .references(() => users.id, {onDelete: 'cascade'}),
+//     requestId: text('request_id')
+//       .notNull()
+//       .references(() => requests.id, {onDelete: 'cascade'}),
+//   },
+//   (t) => [
+// 		primaryKey({ columns: [t.userId, t.requestId] })
+// 	],
+// );
+
+// export const usersToRequestsRelations = relations(usersToRequests, ({ one }) => ({
+//   requests: one(requests, {
+//     fields: [usersToRequests.requestId],
+//     references: [requests.id],
+//   }),
+//   user: one(users, {
+//     fields: [usersToRequests.userId],
+//     references: [users.id],
+//   }),
+// }));
 
 
 
@@ -94,6 +190,7 @@ export const okays = pgTable('okays', {
   sendingId: text("sending_id"),
 })
 
+// submissions relations
 export const okaysRelations = relations(okays, ({ one, many }) => ({
   submission: one(submissions, {
 		fields: [okays.submissionId],
@@ -107,6 +204,7 @@ export const okaysRelations = relations(okays, ({ one, many }) => ({
 	receiving: many(usersToOkays)
 }));
 
+// okays < - > users
 export const usersToOkays = pgTable(
   'users_to_okays',
   {

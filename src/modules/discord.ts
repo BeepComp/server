@@ -43,6 +43,10 @@ class DiscordBotClass {
     return this.POST(`/channels/${announcement ? process.env.DISCORD_ANNOUNCEMENT_CHANNEL : process.env.DISCORD_CHAT_CHANNEL}/messages`, {content})
   }
 
+  send_message_outer(content: String, channel_id: string) {
+    return this.POST(`/channels/${channel_id}/messages`, {content})
+  }
+
   give_role(member_id: String) {
     return this.PUT(`/guilds/${process.env.MAIN_SERVER}/members/${member_id}/roles/${process.env.DISCORD_ROLE}`)
   }
@@ -53,6 +57,49 @@ class DiscordBotClass {
 }
 
 export const DiscordBot = new DiscordBotClass()
+
+class DiscordWebHookClass {
+  _axios: AxiosInstance;
+  constructor() {
+    this._axios = axios.create({
+      url: process.env.COOL_CHAT_WEBHOOK
+    })
+  }
+  
+  async _base_request(method: ("GET" | "POST" | "PATCH" | "PUT" | "DELETE"), data: object, announce: boolean = false) {
+    let headers: any = {}
+
+    let res = await this._axios({ url: (announce ? process.env.COOL_ANNOUNCEMENT_WEBHOOK : process.env.COOL_CHAT_WEBHOOK), method, headers, data })
+
+    return res.data
+  }
+
+  async GET(body: object = {}, announce = false) {
+    return this._base_request("GET", body, announce)
+  }
+
+  async POST(body: object = {}, announce = false) {
+    return this._base_request("POST", body, announce)
+  }
+
+  async PATCH(body: object = {}, announce = false) {
+    return this._base_request("PATCH", body, announce)
+  }
+
+  async PUT(body: object = {}, announce = false) {
+    return this._base_request("PUT", body, announce)
+  }
+
+  async DELETE(body: object = {}, announce = false) {
+    return this._base_request("DELETE", body, announce)
+  }
+
+  send_message(content: String, announce = false) {
+    return this.POST({content}, announce)
+  }
+}
+
+export const DiscordWebHook = new DiscordWebHookClass()
 
 // import { Client, Events, GatewayIntentBits } from 'discord.js';
 
