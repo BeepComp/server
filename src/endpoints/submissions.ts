@@ -1,10 +1,11 @@
-import { Submission, SubmissionSchema } from "@beepcomp/core";
+import { Submission, SubmissionRequest, SubmissionSchema } from "@beepcomp/core";
 import { AuthLevels, Pointer } from "../modules/hono";
 import rounds from "../rounds.json"
 import { modifiersToSubmissions, submissions, users, usersToSubmissions, modifiers, requests } from '../db/schema';
 import { DB } from "../modules/db";
 import snowflake from "../modules/snowflake";
 import { eq } from "drizzle-orm";
+import { makeRequest } from "../modules/requests";
 
 Pointer.GET(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
   if (pack.user == undefined) { return new Error("User Invalid!") }
@@ -54,12 +55,15 @@ Pointer.GET(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
 })
 
 Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
+  // Check User
   if (pack.user == undefined) { return new Error("User Invalid!") }
 
+  // Get and Check Round
   let raw_round = req.param("round")
   if (raw_round == undefined) { return new Error("Round Invalid!") }
   let round = Number.parseInt(raw_round)
 
+  // Check if Round Started
   let id = 0
   rounds.find((round, ind) => {
     let TOURNAMENT_EPOCH = Number(process.env.TOURNAMENT_EPOCH)
@@ -71,8 +75,10 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
   
   if (round > id) { return new Error("Round Not Even Started Yet...") }
 
+  // DB Worker
   const db = DB(c)
 
+  // Get Previous Submission For Round to Replace
   let user = await db.query.users.findFirst({
     where: eq(users.id, pack.user.id),
     with: {
@@ -89,11 +95,13 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
     await db.delete(submissions).where(eq(submissions.id, problem_submission.submissionId))
   }
 
-  let submission = await req.json()
+  // Get Submission Data
+  let submission: SubmissionRequest = await req.json()
   print("raw_submission: ", submission)
   // let submission: Submission = await req.json()
   
-  let newSubmission = await db.insert(submissions).values({ 
+  // Database Submission Data
+  let newSubmission = await db.insert(submissions).values({
     id: snowflake(),
     title: submission.title,
     link: submission.link,
@@ -101,6 +109,7 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
     submitter: pack.user.id
   }).returning({ id: submissions.id })
 
+  // Database Submission Authors
   let userId = pack.user.id
   let submissionId = (newSubmission[0].id)
 
@@ -110,6 +119,7 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
     submissionId
   }))
 
+  // Database Submission Modifiers
   submission.modifiers.forEach((modifierId: string) => {
     inserts.push(db.insert(modifiersToSubmissions).values({
       modifierId,
@@ -117,15 +127,15 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
     }))
   })
 
-  if (submission.collaborator != undefined || submission.challenger != undefined) {
-    inserts.push(db.insert(requests).values({
-      id: snowflake(),
-      type: (submission.collaborator != undefined ? "collab" : "battle"),
-      round: round,
+  // Send Out Requests
+  if (submission.request_type != null && submission.request_receivingId != null) {
+    inserts.push(makeRequest(
+      submission.request_type,
+      userId,
+      submission.request_receivingId,
       submissionId,
-      sendingId: userId,
-      receivingId: (submission.collaborator || submission.challenger)
-    }))
+      round
+    ))
   }
 
   await Promise.all(inserts)

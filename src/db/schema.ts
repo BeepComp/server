@@ -49,6 +49,7 @@ export const submissions = pgTable('submissions', {
   title: text("title"),
   link: text("link"),
   player_link: text("player_link"),
+  desc: text("desc"),
   round: integer("round"),
   challengerId: text("challengerId"),
   submitter: text("submitter").references(() => users.id, {onDelete: 'cascade'})
@@ -127,11 +128,11 @@ export const modifiersToSubmissionsRelations = relations(modifiersToSubmissions,
 
 export const requests = pgTable('requests', {
 	id: text('id').primaryKey(),
-	type: text('type', {enum: ["battle", "collab"]}),
-  submissionId: text("submission_id").references(() => submissions.id, {onDelete: 'cascade'}),
-  round: integer("round"),
-  sendingId: text("sending_id").references(() => users.id, {onDelete: 'cascade'}),
-  receivingId: text("receiving_id").references(() => users.id, {onDelete: 'cascade'}),
+	type: text('type', {enum: ["battle", "collab"]}).notNull(),
+  submissionId: text("submission_id").references(() => submissions.id, {onDelete: 'cascade'}).notNull(),
+  round: integer("round").notNull(),
+  sendingId: text("sending_id").references(() => users.id, {onDelete: 'cascade'}).notNull(),
+  receivingId: text("receiving_id").references(() => users.id, {onDelete: 'cascade'}).notNull(),
 })
 
 // requests relations

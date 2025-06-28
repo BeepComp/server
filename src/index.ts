@@ -16,6 +16,8 @@ import "./endpoints/signup"
 
 import "./endpoints/discord"
 import "./endpoints/submissions"
+import "./endpoints/modifiers"
+import "./endpoints/requests"
 
 // ModulesZ
 // import "./modules/discord"

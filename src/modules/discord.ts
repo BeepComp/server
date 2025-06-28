@@ -1,5 +1,8 @@
 import axios, { type AxiosInstance } from "axios";
 
+// import TaskManager from "task-manager";
+// const Queue = new TaskManager()
+
 class DiscordBotClass {
   _axios: AxiosInstance;
   constructor() {
@@ -13,10 +16,17 @@ class DiscordBotClass {
   
   async _base_request(method: ("GET" | "POST" | "PATCH" | "PUT" | "DELETE"), url: string, data: object) {
     let headers: any = {}
+    print(`discord bot ${method} ${url}`)
 
-    let res = await this._axios({ url, method, headers, data })
+    try {
+      let res = await this._axios({ url, method, headers, data: ((method == "GET") ? undefined : data) })
+      print("discord bot res: ", res)
 
-    return res.data
+      return res.data
+    } catch(err) {
+      print("discord bot error kys: ", err)
+      return null
+    }
   }
 
   async GET(path: string, body: object = {}) {
