@@ -1,4 +1,4 @@
-import { Submission, SubmissionRequest, SubmissionSchema } from "@beepcomp/core";
+import { SongURL, Submission, SubmissionRequest, SubmissionSchema } from "@beepcomp/core";
 import { AuthLevels, Pointer } from "../modules/hono";
 import rounds from "../rounds.json"
 import { modifiersToSubmissions, submissions, users, usersToSubmissions, modifiers, requests } from '../db/schema';
@@ -43,6 +43,7 @@ Pointer.GET(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
       title: (submission.title as string),
       link: (submission.link as string),
       player_link: (submission.player_link as string),
+      desc: (submission.desc as string),
       round_id: round,
       modifiers: submission.modifiers.map(entry => entry.modifierId),
       okay_count: 0, // Empty here
@@ -65,13 +66,14 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
 
   // Check if Round Started
   let id = 0
-  rounds.find((round, ind) => {
+  for (let ind = rounds.length - 1; ind >= 0; ind--) {
     let TOURNAMENT_EPOCH = Number(process.env.TOURNAMENT_EPOCH)
     let start = TOURNAMENT_EPOCH + (604800000 * ind)
-    id = ind + 1
-
-    return (Date.now() > start)
-  })
+    if (Date.now() > start) {
+      id = ind + 1
+      break
+    }
+  }
   
   if (round > id) { return new Error("Round Not Even Started Yet...") }
 
@@ -100,11 +102,15 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
   print("raw_submission: ", submission)
   // let submission: Submission = await req.json()
   
+  // Link Valid?
+  if (SongURL(submission.link) == null) { return new Error("Submission Link Invalid! (Possibly Disallowed Mod/URL Origin)") }
+
   // Database Submission Data
   let newSubmission = await db.insert(submissions).values({
     id: snowflake(),
     title: submission.title,
     link: submission.link,
+    desc: submission.desc,
     round,
     submitter: pack.user.id
   }).returning({ id: submissions.id })

@@ -16,13 +16,14 @@ Pointer.GET(AuthLevels.ONLY_DISCORD, `/requests/:round`, async (req, c, pack) =>
   
   // Check if Round Started
   let id = 0
-  rounds.find((round, ind) => {
+  for (let ind = rounds.length - 1; ind >= 0; ind--) {
     let TOURNAMENT_EPOCH = Number(process.env.TOURNAMENT_EPOCH)
     let start = TOURNAMENT_EPOCH + (604800000 * ind)
-    id = ind + 1
-
-    return (Date.now() > start)
-  })
+    if (Date.now() > start) {
+      id = ind + 1
+      break
+    }
+  }
   
   if (round > id) { return new Error("Round Not Even Started Yet...") }
 
@@ -52,10 +53,13 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/requests/accept/:id`, async (req, c, pac
 
   let res
 
+  let your_submission = await db.query.submissions.findFirst({where: and(eq(submissions.submitter, pack.user.id), eq(submissions.round, request.round)), with: {authors: true}})
+
+  if (your_submission?.challengerId != null) { return new Error("Already in a Battle This Round!") }
+  if ((your_submission?.authors || []).length > 1) { return new Error("Already in a Collab This Round!") }
+
   if (request.type == "battle") {
-    let your_submission = await db.query.submissions.findFirst({where: and(eq(submissions.submitter, pack.user.id), eq(submissions.round, request.round))})
     if (your_submission == undefined) { return new Error("Need a Submission This Round To Accept This Battle Request!") }
-    
     res = await acceptRequest(request, your_submission.id)
   } else {
     res = await acceptRequest(request)

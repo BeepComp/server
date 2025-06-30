@@ -8,8 +8,13 @@ import { users } from '../db/schema';
 import { User } from "@beepcomp/core";
 import { DiscordBot, DiscordWebHook } from './discord';
 import { pretext } from './setup';
+import { Global } from './global';
 
-const app = new Hono()
+type Bindings = {
+  BEEPCOMP: KVNamespace
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
 // https://w4lwz7j7-8787.use.devtunnels.ms/
 // app.use('*', async (c, next) => {
 //   const corsMiddlewareHandler = cors({
@@ -49,6 +54,8 @@ export const AuthLevels = {
 function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), auth: AuthLevel[], path: string, func: HonoParams, unlocks: number | null = null) {
   // console.log("Defining...", arguments, app)
   app[method](path, async (c: Context) => {
+    Global["BEEPCOMP"] = c.env.BEEPCOMP
+
     let rid = String(snowflake.generate())
     let token = c.req.header("Authorization")?.split(" ")[1]
     let pack: RequestPack = {

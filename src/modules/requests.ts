@@ -1,5 +1,5 @@
 import { DB } from "./db"
-import { and, eq } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import { requests, submissions, usersToSubmissions } from '../db/schema';
 import snowflake from "./snowflake";
 
@@ -19,7 +19,7 @@ export async function makeRequest(type: "collab" | "battle", sendingId: string, 
   // Can't sent to self
   if (sendingId == receivingId) { return false }
 
-  // Battle Auto Accept
+  // Battle Auto Accept (no auto accept on collabs for version control reasons, lol)
   if (type == "battle") {
     let pre_request = await db.query.requests.findFirst({
       where: and(eq(requests.sendingId, receivingId), eq(requests.receivingId, sendingId), eq(requests.round, round)),
@@ -55,6 +55,12 @@ export async function acceptRequest(req: string | typeof requests.$inferSelect, 
       db.delete(submissions).where(and(eq(submissions.submitter, request.receivingId), eq(submissions.round, request.round))),
       db.insert(usersToSubmissions).values({ userId: request.receivingId, submissionId: request.submissionId }),
       db.delete(requests).where(eq(requests.id, request.id)),
+      db.delete(requests).where(or( // delete all other pending requests for that round for the related parties
+        and(eq(requests.round, request.round), eq(requests.sendingId, request.sendingId)),
+        and(eq(requests.round, request.round), eq(requests.sendingId, request.receivingId)),
+        and(eq(requests.round, request.round), eq(requests.receivingId, request.sendingId)),
+        and(eq(requests.round, request.round), eq(requests.receivingId, request.receivingId)),
+      ))
     ])
 
     did_something = true
@@ -71,6 +77,12 @@ export async function acceptRequest(req: string | typeof requests.$inferSelect, 
       db.update(submissions).set({ challengerId: request.sendingId }).where(eq(submissions.id, submissionId)),
       db.update(submissions).set({ challengerId: request.receivingId }).where(eq(submissions.id, request.submissionId)),
       db.delete(requests).where(eq(requests.id, request.id)),
+      db.delete(requests).where(or( // delete all other pending requests for that round for the related parties
+        and(eq(requests.round, request.round), eq(requests.sendingId, request.sendingId)),
+        and(eq(requests.round, request.round), eq(requests.sendingId, request.receivingId)),
+        and(eq(requests.round, request.round), eq(requests.receivingId, request.sendingId)),
+        and(eq(requests.round, request.round), eq(requests.receivingId, request.receivingId)),
+      ))
     ])
 
     did_something = true

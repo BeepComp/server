@@ -3,29 +3,39 @@ import axios, { type AxiosInstance } from "axios";
 // import TaskManager from "task-manager";
 // const Queue = new TaskManager()
 
+export function GuildBot(guild_id: string) {
+  const BOT_1_SERVERS = (process.env.BOT_1_SERVERS).split(",")
+  const BOT_2_SERVERS = (process.env.BOT_2_SERVERS).split(",")
+  
+  if (BOT_1_SERVERS.includes(guild_id)) { return DiscordBot } // Not redundant, just priority based
+  if (BOT_2_SERVERS.includes(guild_id)) { return DiscordBot2 }
+
+  return DiscordBot
+}
+
 class DiscordBotClass {
   _axios: AxiosInstance;
-  constructor() {
+  constructor(token: string) {
     this._axios = axios.create({
       baseURL: "https://discord.com/api/v10/",
       headers: {
-        "Authorization": `Bot ${process.env.DISCORD_TOKEN}` 
+        "Authorization": `Bot ${token}` 
       }
     })
   }
   
   async _base_request(method: ("GET" | "POST" | "PATCH" | "PUT" | "DELETE"), url: string, data: object) {
     let headers: any = {}
-    print(`discord bot ${method} ${url}`)
+    // print(`discord bot ${method} ${url}`)
 
     try {
       let res = await this._axios({ url, method, headers, data: ((method == "GET") ? undefined : data) })
-      print("discord bot res: ", res)
+      // print("discord bot res: ", res)
 
       return res.data
     } catch(err) {
-      print("discord bot error kys: ", err)
-      return null
+      // print("discord bot error kys: ", err)
+      return err
     }
   }
 
@@ -66,7 +76,8 @@ class DiscordBotClass {
   }
 }
 
-export const DiscordBot = new DiscordBotClass()
+export const DiscordBot = new DiscordBotClass(process.env.DISCORD_TOKEN)
+export const DiscordBot2 = new DiscordBotClass(process.env.DISCORD_TOKEN_2)
 
 class DiscordWebHookClass {
   _axios: AxiosInstance;

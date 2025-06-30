@@ -14,16 +14,17 @@
   ],
   "dev": {
     "ip": "0.0.0.0"
-  }
+  },
   // "vars": {
   //   "MY_VAR": "my-variable"
   // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
+  "kv_namespaces": [
+    {
+      "binding": "BEEPCOMP",
+      "id": "da4bdfbe68284459b1ca1d9d0cef0d25",
+      "preview_id": "9758c702a4cc445a8190829002e6da27"
+    }
+  ]
   // "r2_buckets": [
   //   {
   //     "binding": "MY_BUCKET",
