@@ -45,14 +45,14 @@ export const modifiersRelations = relations(modifiers, ({ many }) => ({
 
 export const submissions = pgTable('submissions', {
 	id: text('id').primaryKey(),
-	draft: boolean("draft").default(false),
-  title: text("title"),
-  link: text("link"),
-  player_link: text("player_link"),
-  desc: text("desc"),
-  round: integer("round"),
+	draft: boolean("draft").notNull().default(false),
+  title: text("title").notNull(),
+  link: text("link").notNull(),
+  // player_link: text("player_link"), // too late 🥀
+  desc: text("desc").notNull(),
+  round: integer("round").notNull(),
   challengerId: text("challengerId"),
-  submitter: text("submitter").references(() => users.id, {onDelete: 'cascade'})
+  submitter: text("submitter").notNull().references(() => users.id, {onDelete: 'cascade'})
 });
 
 // submissions relations

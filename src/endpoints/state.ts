@@ -1,10 +1,10 @@
 import { Modifier, Request, Round, SignupDialogue, State, StateRound, Submission, User } from "@beepcomp/core"
-import { AuthLevels, Pointer } from "../modules/hono"
+import { AuthLevel, AuthLevels, Pointer } from "../modules/hono"
 import rounds from "../rounds.json"
 import metadata from "../signupMeta.json"
 import { getRoundsObj } from "./rounds"
 import { eq, not, or } from "drizzle-orm"
-import { requests, users } from "../db/schema"
+import { requests, users, modifiers } from '../db/schema';
 import { DB } from "../modules/db"
 import { getAllUsers } from "./users"
 
@@ -35,13 +35,15 @@ Pointer.GET(AuthLevels.ALL, `/state`, async (req, c, pack) => {
     started: (currentRound != null),
     currentRound: (id || undefined),
     server_valid: false,
-    modifiers: []
+    modifiers: [],
+    admin: false
   }
 
   // User Participant Stuff
   if (!return_obj.started) { return_obj["signupMeta"] = (metadata as unknown as SignupDialogue[]) }
   if (pack.user) {
     return_obj["user"] = pack.user
+    return_obj["admin"] = process.env.ADMINS.split(",").includes(pack.user.id)
   }
 
   // In Valid Servers for Participation?
@@ -83,7 +85,13 @@ Pointer.GET(AuthLevels.ALL, `/state`, async (req, c, pack) => {
     let proms_res = await Promise.all(proms)
     // print("proms_res[2]: ", JSON.stringify(proms_res[2], null, 2))
 
-    return_obj["modifiers"] = (proms_res[1] as Modifier[])
+    let these_modifiers =  (proms_res[1] as (typeof modifiers.$inferSelect)[])
+
+    return_obj["modifiers"] = (these_modifiers.map(modifier => {
+      let new_modifier: any = modifier
+      if (pack.auth_level < AuthLevel.DISCORD_ADMIN ) { delete new_modifier["submitter"] } 
+      return new_modifier
+    }) as Modifier[])
     return_obj["other_users"] = (proms_res[0].filter((user: User) => user.id != pack?.user?.id) as User[])
 
     let state_rounds = rounds.slice(0,id).map((raw_round, ind) => {

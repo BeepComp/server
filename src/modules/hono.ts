@@ -39,16 +39,19 @@ export interface RequestPack {
   request_guilds: () => Promise<{in_servers: string[], main_server: boolean}>;
 }
 type HonoParams = (req: HonoRequest, c: Context, pack: RequestPack) => void
-enum AuthLevel {
+export enum AuthLevel {
   NONE,
   DISCORD,
-  ADMIN
+  DISCORD_ADMIN,
+  ADMIN,
 }
 export const AuthLevels = {
-  ALL: [AuthLevel.NONE, AuthLevel.DISCORD, AuthLevel.ADMIN],
-  DISCORD: [AuthLevel.DISCORD, AuthLevel.ADMIN],
-  ONLY_DISCORD: [AuthLevel.DISCORD],
-  ONLY_ADMIN: [AuthLevel.ADMIN],
+  ALL: [AuthLevel.NONE, AuthLevel.DISCORD, AuthLevel.DISCORD_ADMIN, AuthLevel.ADMIN],
+  DISCORD: [AuthLevel.DISCORD, AuthLevel.DISCORD_ADMIN, AuthLevel.ADMIN],
+  ONLY_DISCORD: [AuthLevel.DISCORD, AuthLevel.DISCORD_ADMIN],
+  DISCORD_ADMIN: [AuthLevel.DISCORD_ADMIN],
+  ADMIN: [AuthLevel.ADMIN, AuthLevel.DISCORD_ADMIN],
+  ONLY_ADMIN: [AuthLevel.ADMIN], // why would you ever need this, lol
 }
 
 function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), auth: AuthLevel[], path: string, func: HonoParams, unlocks: number | null = null) {
@@ -81,8 +84,10 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
       if (json?.code == 0 && json?.message == "401: Unauthorized") {
         // ... erm...
       } else {
-        pack.auth_level = AuthLevel.DISCORD
         pack.user = json
+
+        let is_admin = process.env.ADMINS.split(",").includes(pack?.user?.id || "")
+        pack.auth_level = (is_admin ? AuthLevel.DISCORD_ADMIN : AuthLevel.DISCORD)
       }
     }
 
@@ -179,8 +184,8 @@ Pointer.GET(AuthLevels.ONLY_DISCORD, "/discord_only_endpoint", (req: HonoRequest
   return { api_version: "v1 (discord edition)", discord: (pack.auth_level == AuthLevel.DISCORD), admin: (pack.auth_level == AuthLevel.ADMIN), rid: pack.rid, user: pack.user}
 })
 
-Pointer.GET(AuthLevels.ONLY_ADMIN, "/admin_endpoint", (req: HonoRequest, c: Context, pack: RequestPack) => {
-  return { api_version: "v1 (admin edition)", admin: (pack.auth_level == AuthLevel.ADMIN), rid: pack.rid}
+Pointer.GET(AuthLevels.ADMIN, "/admin_endpoint", (req: HonoRequest, c: Context, pack: RequestPack) => {
+  return { api_version: "v1 (admin edition)", admin: (pack.auth_level == AuthLevel.ADMIN || pack.auth_level == AuthLevel.DISCORD_ADMIN), rid: pack.rid}
 })
 
 // Testing out locked content

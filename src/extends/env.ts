@@ -1,5 +1,6 @@
 export interface IProcessEnv {
   ADMIN_TOKEN: string;
+  ADMINS: string;
   DATABASE_HOST: string;
 
   TOURNAMENT_EPOCH: string;
