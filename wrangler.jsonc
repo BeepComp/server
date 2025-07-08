@@ -24,7 +24,7 @@
       "id": "da4bdfbe68284459b1ca1d9d0cef0d25",
       "preview_id": "9758c702a4cc445a8190829002e6da27"
     }
-  ]
+  ],
   // "r2_buckets": [
   //   {
   //     "binding": "MY_BUCKET",
@@ -41,8 +41,11 @@
   // "ai": {
   //   "binding": "AI"
   // },
-  // "observability": {
-  //   "enabled": true,
-  //   "head_sampling_rate": 1
-  // }
+  "limits": {
+    "cpu_ms": 90000, // default is 30000 (30 seconds)
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
 }

@@ -134,7 +134,7 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
 
     print(unlocks)
     print(Date.now())
-    print("REQUEST PACK: ", pack)
+    // print("REQUEST PACK: ", pack)
 
     if (unlocks != null && unlocks > Date.now() && pack.auth_level != AuthLevel.ADMIN) {
       c.status(403)

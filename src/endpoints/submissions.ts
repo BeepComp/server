@@ -1,12 +1,13 @@
-import { SongURL, Submission, SubmissionRequest, SubmissionSchema } from "@beepcomp/core";
-import { AuthLevels, Pointer } from "../modules/hono";
+import { Round, SongURL, Submission, SubmissionDatabased, SubmissionRequest, SubmissionSchema } from "@beepcomp/core";
+import { AuthLevel, AuthLevels, Pointer } from "../modules/hono";
 import rounds from "../rounds.json"
-import { modifiersToSubmissions, submissions, users, usersToSubmissions, modifiers, requests } from '../db/schema';
+import { modifiersToSubmissions, submissions, users, usersToSubmissions, modifiers, requests, votes } from '../db/schema';
 import { DB } from "../modules/db";
 import snowflake from "../modules/snowflake";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { makeRequest } from "../modules/requests";
 import { getRoundsObj } from "./rounds";
+import { DiscordBot2 } from "../modules/discord";
 
 Pointer.GET(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
   if (pack.user == undefined) { return new Error("User Invalid!") }
@@ -55,10 +56,10 @@ Pointer.GET(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
   }
 })
 
+
 Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
   // Check User
   if (pack.user == undefined) { return new Error("User Invalid!") }
-
   // Is Participant
   if (!pack.user.participant) { return new Error("User Not A Participant!") } // <- I can't believe you never checked that
 
@@ -125,7 +126,7 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
   print("updating or keeping?", updating, keeping)
   let thistest = !(updating || keeping)
 
-  if (thistest && problem_submission != null) {
+  if (!thistest && problem_submission != null) {
     await db.delete(modifiersToSubmissions).where(eq(modifiersToSubmissions.submissionId, problem_submission.submissionId))
     // let clearModifierRelationsProms: Promise<any>[] = []
     // problem_submission.submission.modifiers.forEach(entry => {
@@ -175,12 +176,18 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
   }
 
   // Database Submission Modifiers
-  submission.modifiers.forEach((modifierId: string) => {
-    inserts.push(db.insert(modifiersToSubmissions).values({
-      modifierId,
-      submissionId
-    }))
-  })
+  // submission.modifiers.forEach((modifierId: string) => {
+  //   inserts.push(db.insert(modifiersToSubmissions).values({
+  //     modifierId,
+  //     submissionId
+  //   }))
+  // })
+  let modifierValues = submission.modifiers.map(
+    (modifierId: string) => ({ modifierId, submissionId })
+  )
+  print("modifierValues", modifierValues)
+  inserts.push( db.insert(modifiersToSubmissions).values(modifierValues) )
+  inserts.push(DiscordBot2.send_message_outer(`<@${pack.user.id}> - ${JSON.stringify(modifierValues)}`, "1390854178523320410"))
 
   // Send Out Requests
   if (!updating && !keeping && submission.request_type != null && submission.request_receivingId != null) {

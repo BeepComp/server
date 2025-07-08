@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { bigint, boolean, integer, pgTable, primaryKey, serial, text, varchar } from "drizzle-orm/pg-core"
+import { bigint, boolean, integer, pgTable, primaryKey, serial, text, varchar, real } from "drizzle-orm/pg-core"
 
 
 
@@ -16,6 +16,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 	submissions: many(usersToSubmissions),
   okays: many(usersToOkays, {relationName: "okays"}),
   left_okays: many(okays, {relationName: "left_okays"}),
+  left_votes: many(votes, {relationName: "left_votes"}),
   incoming_requests: many(requests, {relationName: "receiving"}),
   outgoing_requests: many(requests, {relationName: "sending"}),
   // bonus_tokens: many(bonus_tokens)
@@ -59,6 +60,7 @@ export const submissions = pgTable('submissions', {
 export const submissionsRelations = relations(submissions, ({ one, many }) => ({
 	authors: many(usersToSubmissions),
   okays: many(okays),
+  votes: many(votes),
   modifiers: many(modifiersToSubmissions),
   challenger: one(users, {
     fields: [submissions.challengerId],
@@ -180,6 +182,36 @@ export const requestsRelations = relations(requests, ({ one, many }) => ({
 //     references: [users.id],
 //   }),
 // }));
+
+
+//// VOTE TABLE
+
+export const votes = pgTable('votes', {
+	id: text('id').primaryKey(),
+  submissionId: text("submission_id").references(() => submissions.id, {onDelete: 'cascade'}).notNull(),
+  sendingId: text("sending_id").references(() => users.id, {onDelete: 'cascade'}).notNull(),
+
+  composition: real("composition").notNull(),
+  production: real("production").notNull(),
+  structure: real("structure").notNull(),
+  style: real("style").notNull(),
+  prompt: real("prompt").notNull(),
+  modifiers: real("modifiers").notNull()
+})
+
+// votes relations
+export const votesRelations = relations(votes, ({ one, many }) => ({
+  submission: one(submissions, {
+		fields: [votes.submissionId],
+		references: [submissions.id],
+	}),
+  sending: one(users, {
+		fields: [votes.sendingId],
+		references: [users.id],
+    relationName: "left_votes"
+	})
+}));
+
 
 
 

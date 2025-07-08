@@ -16,6 +16,7 @@ import "./endpoints/signup"
 
 import "./endpoints/discord"
 import "./endpoints/submissions"
+import "./endpoints/votes"
 import "./endpoints/modifiers"
 import "./endpoints/requests"
 import "./endpoints/admin"
