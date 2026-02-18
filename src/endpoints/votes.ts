@@ -19,7 +19,7 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/votes/:submission`, async (req, c, pack)
   if (submission == null) { return new Error("Submission Invalid!") }
 
   // Authors can't vote on their own submission??
-  if (submission.authors.findIndex(entry => entry.userId == pack.user.id) != -1) { new Error("Can't vote on own submission!!") }
+  if (submission.authors.findIndex(entry => entry.userId == pack.user?.id) != -1) { new Error("Can't vote on own submission!!") }
 
   // Delete Duplicate Votes
   await db.delete(votes).where(and(

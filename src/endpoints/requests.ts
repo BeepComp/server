@@ -4,6 +4,7 @@ import rounds from "../rounds.json"
 import { requests, submissions } from '../db/schema';
 import { DB } from "../modules/db";
 import { and, eq } from "drizzle-orm";
+import { getCurrentRound } from "./rounds";
 
 Pointer.GET(AuthLevels.ONLY_DISCORD, `/requests/:round`, async (req, c, pack) => {
   // Check User
@@ -15,16 +16,7 @@ Pointer.GET(AuthLevels.ONLY_DISCORD, `/requests/:round`, async (req, c, pack) =>
   let round = Number.parseInt(raw_round)
   
   // Check if Round Started
-  let id = 0
-  for (let ind = rounds.length - 1; ind >= 0; ind--) {
-    let TOURNAMENT_EPOCH = Number(process.env.TOURNAMENT_EPOCH)
-    let start = TOURNAMENT_EPOCH + (604800000 * ind)
-    if (Date.now() > start) {
-      id = ind + 1
-      break
-    }
-  }
-  
+  let id = (getCurrentRound()?.id ?? 0)
   if (round > id) { return new Error("Round Not Even Started Yet...") }
 
   // ...

@@ -2,13 +2,15 @@ import { Snowflake } from '@sapphire/snowflake';
 import { Context, HonoRequest } from "hono"
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { DB } from './db';
-import { eq } from 'drizzle-orm';
-import { users } from '../db/schema';
+// import { DB } from './db';
+// import { eq } from 'drizzle-orm';
+// import { users } from '../db/schema';
 import { User } from "@beepcomp/core";
-import { DiscordBot, DiscordWebHook } from './discord';
+// import { DiscordBot, DiscordWebHook } from './discord';
 import { pretext } from './setup';
 import { Global } from './global';
+import jwt from 'jwt-simple';
+import { getAllUsers } from './users';
 
 type Bindings = {
   BEEPCOMP: KVNamespace
@@ -60,11 +62,21 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
     Global["BEEPCOMP"] = c.env.BEEPCOMP
 
     let rid = String(snowflake.generate())
+    Global["rid"] = rid
     let token = c.req.header("Authorization")?.split(" ")[1]
+    let token_json: any = {}
+    try {
+      if (token) { token_json = jwt.decode((token || ""), c.env.JWT_SECRET) }
+    } catch(err) {
+      token_json = {} // yeah...
+    }
+    // let token_json = jwt.decode((token || ""), c.env.JWT_SECRET)
+    // let token_json = {}
+    print(token, token_json)
     let pack: RequestPack = {
       auth_level: AuthLevel.NONE,
       rid,
-      auth_token: token,
+      auth_token: token_json.access_token,
       request_guilds: async () => {return {in_servers: [], main_server: false}}
     }
     
@@ -72,35 +84,42 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
     if (token == c.env.ADMIN_TOKEN) { // so ez
       pack.auth_level = AuthLevel.ADMIN
     } else { // DISCORD AUTHENTICATION
-      let res = await fetch("https://discord.com/api/v10/users/@me", {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
+      let users = await getAllUsers()
+      let user = users.find(this_user => this_user.id == token_json.id)
+      pack.user = user
+      let is_admin = process.env.ADMINS.split(",").includes(pack?.user?.id || "")
+      pack.auth_level = (is_admin ? AuthLevel.DISCORD_ADMIN : AuthLevel.DISCORD)
 
-      let json: any = await res.json()
-      print("Discord Result: ", json)
+      // let json: any = await res.json()
+      // print("Discord Result: ", json)
       // print("flags: ", flags)
-      if (json?.code == 0 && json?.message == "401: Unauthorized") {
+      // if (json?.code == 0 && json?.message == "401: Unauthorized") {
         // ... erm...
-      } else {
-        pack.user = json
+      // } else {
+        // pack.user = user
 
-        let is_admin = process.env.ADMINS.split(",").includes(pack?.user?.id || "")
-        pack.auth_level = (is_admin ? AuthLevel.DISCORD_ADMIN : AuthLevel.DISCORD)
-      }
+        // let is_admin = process.env.ADMINS.split(",").includes(pack?.user?.id || "")
+        // pack.auth_level = (is_admin ? AuthLevel.DISCORD_ADMIN : AuthLevel.DISCORD)
+      // }
     }
 
     // Attaching DB user data
     if (pack.user) {
-      const db = DB(c)
+      // const db = DB(c)
 
-      print("is it the database?")
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, pack.user.id)
-      })
+      // print("is it the database?")
+      // let user = await db.query.users.findFirst({
+      //   where: eq(users.id, pack.user.id)
+      // })
 
-      pack.user.participant = (user?.participant || false)
+      // if (user == null) {
+      //   user = (await db.insert(users).values({
+      //     id: pack.user.id,
+      //     participant: false
+      //   }).returning({id: users.id, participant: users.participant}) || [])[0]
+      // }
+
+      // pack.user.participant = (user?.participant || false)
 
       //// SERVER CHECKING
       pack.request_guilds = (async () => {
@@ -108,8 +127,8 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
           in_servers: [],
           main_server: false
         }
-        await (new Promise<void>((res, rej) => setTimeout(() => {res()}, 1000))) // no rate limit pls...
-        print("is it the discord guild fetch?")
+        // await (new Promise<void>((res, rej) => setTimeout(() => {res()}, 1000))) // no rate limit pls...
+        // print("is it the discord guild fetch?")
         let server_res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
           headers: {
             Authorization: `Bearer ${pack.auth_token}`
@@ -117,7 +136,7 @@ function base_enpoint(method: ("get" | "post" | "patch" | "put" | "delete"), aut
         })
 
         let json: any[] = await server_res.json()
-        print("guild res: ", json)
+        // print("guild res: ", json)
         
         if (Array.isArray(json)) {
           let VALID_SERVERS = (process.env.VALID_SERVERS?.split(",") || [])

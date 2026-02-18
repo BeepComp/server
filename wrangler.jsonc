@@ -15,9 +15,6 @@
   "dev": {
     "ip": "0.0.0.0"
   },
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
   "kv_namespaces": [
     {
       "binding": "BEEPCOMP",
@@ -25,24 +22,13 @@
       "preview_id": "9758c702a4cc445a8190829002e6da27"
     }
   ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
-  // "d1_databases": [
-  //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
-  //     "database_id": ""
-  //   }
-  // ],
-  // "ai": {
-  //   "binding": "AI"
-  // },
   "limits": {
     "cpu_ms": 90000, // default is 30000 (30 seconds)
+  },
+  "triggers": {
+    "crons": [
+      "*/30 * * * *"
+    ]
   },
   "observability": {
     "enabled": true,

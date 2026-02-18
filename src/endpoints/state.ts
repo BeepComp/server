@@ -2,11 +2,11 @@ import { Modifier, Request, Round, SignupDialogue, State, StateRound, Submission
 import { AuthLevel, AuthLevels, Pointer } from "../modules/hono"
 import rounds from "../rounds.json"
 import metadata from "../signupMeta.json"
-import { getRoundsObj } from "./rounds"
+import { getCurrentRound, getRoundsObj } from "./rounds"
 import { eq, not, or } from "drizzle-orm"
 import { requests, users, modifiers, votes, submissions } from '../db/schema';
 import { DB } from "../modules/db"
-import { getAllUsers } from "./users"
+import { getAllUsers } from "../modules/users"
 
 Pointer.GET(AuthLevels.ALL, `/state`, async (req, c, pack) => {
   const db = DB()
@@ -14,19 +14,8 @@ Pointer.GET(AuthLevels.ALL, `/state`, async (req, c, pack) => {
   // if (pack.user == null) { return new Error("Invalid User!") }
 
   // Round Information
-  let id = null
-
-  let currentRound = null
-  for (let ind = rounds.length - 1; ind >= 0; ind--) {
-    let round = rounds[ind]
-    let TOURNAMENT_EPOCH = Number(process.env.TOURNAMENT_EPOCH)
-    let start = TOURNAMENT_EPOCH + (604800000 * ind)
-    if (Date.now() > start) {
-      currentRound = round
-      id = ind + 1
-      break
-    }
-  }
+  let currentRound = getCurrentRound()
+  let id = currentRound?.id
 
   console.log(currentRound)
 
@@ -47,8 +36,8 @@ Pointer.GET(AuthLevels.ALL, `/state`, async (req, c, pack) => {
   }
 
   // In Valid Servers for Participation?
-  let {in_servers} = await pack.request_guilds()
-  return_obj["server_valid"] = (in_servers.length > 0)
+  // let {in_servers} = await pack.request_guilds()
+  return_obj["server_valid"] = true
 
   // Post Tournament Start Info
   if (id != null) {
@@ -82,7 +71,8 @@ Pointer.GET(AuthLevels.ALL, `/state`, async (req, c, pack) => {
       )
     }
 
-    let proms_res = await Promise.all(proms)
+    let proms_res: any[] = []
+    for await (const prom of proms) { let prom_res = await prom; proms_res.push(prom_res) }
     // print("proms_res[2]: ", JSON.stringify(proms_res[2], null, 2))
 
     let these_modifiers =  (proms_res[1] as (typeof modifiers.$inferSelect)[])
@@ -120,6 +110,10 @@ Pointer.GET(AuthLevels.ALL, `/vote_state/:round`, async (req, c, pack) => {
   let round_obj = (getRoundsObj(round) as Round)
   
   const db = DB(c)
+
+  let queriedId = req.query('submisisonId')
+  let ownSubmission = false
+  let pocketSubmission: any = null
   
   let my_votes = await db.query.votes.findMany({
     where: eq(votes.sendingId, (pack.user?.id || "")),
@@ -143,7 +137,19 @@ Pointer.GET(AuthLevels.ALL, `/vote_state/:round`, async (req, c, pack) => {
     return test_1
   })
 
-  round_submissions = round_submissions.filter(sub => sub.authors.findIndex(author => author.userId == pack.user?.id) == -1)
+  round_submissions = round_submissions.filter(sub => {
+    let notAuthor = (sub.authors.findIndex(author => author.userId == pack.user?.id) == -1)
+    
+    print(sub.id)
+    print(queriedId)
+
+    if ((!notAuthor) && sub.id == queriedId) {
+      ownSubmission = true
+      pocketSubmission = sub
+    }
+
+    return notAuthor
+  })
   let total_round_submission_count = round_submissions.length
 
   let current_rating = {
@@ -156,7 +162,6 @@ Pointer.GET(AuthLevels.ALL, `/vote_state/:round`, async (req, c, pack) => {
     }
 
   let submission: SubmissionDatabased | null = null
-  let queriedId = req.query('submisisonId')
   if (queriedId != null) {
     submission = (round_submissions.find(sub => sub.id == queriedId) as SubmissionDatabased)
     if (submission != null) {
@@ -176,9 +181,16 @@ Pointer.GET(AuthLevels.ALL, `/vote_state/:round`, async (req, c, pack) => {
   } else {
     print("before", round_submissions.map(sub => sub.id))
 
+    round_submissions = round_submissions.filter(sub => {
+      let test_3 = my_votes.findIndex((vote: any) => vote.submissionId == sub.id) == -1;
+      return test_3
+    })
+    print("filter 1", round_submissions.map(sub => sub.id))
+
     round_submissions = round_submissions.sort((subA, subB) => {
       return subA.votes.length - subB.votes.length
     })
+    print("sort", round_submissions.map(sub => sub.id))
 
     function randi(min: number, max: number) {
       min = Math.ceil(min);
@@ -188,9 +200,11 @@ Pointer.GET(AuthLevels.ALL, `/vote_state/:round`, async (req, c, pack) => {
 
     round_submissions = round_submissions.filter(sub => {
       let test_1 = sub.votes.length == round_submissions[0].votes.length;
-      let test_3 = my_votes.findIndex((vote: any) => vote.submissionId == sub.id) == -1;
-      return test_1 && test_3;
+      // let passed = test_1
+      // print(sub, passed)
+      return test_1;
     })
+    print("filter 2", round_submissions.map(sub => sub.id))
 
     print("after", round_submissions.map(sub => sub.id))
 
@@ -206,14 +220,15 @@ Pointer.GET(AuthLevels.ALL, `/vote_state/:round`, async (req, c, pack) => {
     delete submission["submitter"]
     delete submission["authors"]
 
-    submission.modifiers = submission.modifiers?.map((entry) => {
+    submission.modifiers = submission.modifiers?.map((entry: any) => {
       if (obfuscate && entry.modifier) { delete entry.modifier["submitter"] }
       return entry
     })
   }
   
   return {
-    submission, 
+    submission: ((!ownSubmission) ? submission : pocketSubmission), 
+    ownSubmission,
     progress: {
       done: my_votes.length,
       total: total_round_submission_count,

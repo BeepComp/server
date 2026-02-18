@@ -1,123 +1,136 @@
-import { eq } from "drizzle-orm"
-import { users, modifiers } from "../db/schema"
+import { eq, lt } from "drizzle-orm"
+import { users, modifiers, submissions } from '../db/schema';
 import { DB } from "../modules/db"
 import { Pointer, AuthLevels } from "../modules/hono"
-import snowflake from "../modules/snowflake"
+// import snowflake from "../modules/snowflake"
 import { DiscordBot, GuildBot } from "../modules/discord"
-import { AxiosError } from "axios"
+// import { AxiosError } from "axios"
 import { Global } from "../modules/global"
-
-async function _cacheDiscordMembers() {
-  const BEEPCOMP: KVNamespace = Global.BEEPCOMP
-
-  let discord_members_string = await BEEPCOMP.get("discord_members")
-
-  if (discord_members_string == null) {
-    let discord_members: any[] = []
-    let discord_user_ids = new Set()
-    // let discord_members: any[] = []
-    let guilds_ids = process.env.VALID_SERVERS.split(",")
-    for (let ind = 0; ind < guilds_ids.length; ind++) {
-      const guild_id = guilds_ids[ind];
-
-      let res_count = -1
-      let last_id: any = null
-      let id_mixup = false
-      let last_id_count = 0
-      while (res_count == -1 || res_count == 1000 || id_mixup) {
-        let members: any[] = []
-
-        async function getmembers() {
-          let res = await GuildBot(guild_id).GET(`/guilds/${guild_id}/members?limit=1000${(last_id != null) ? `&after=${last_id}` : ""}`)
-
-          if (res instanceof AxiosError) {
-            print(`Axios Error: `, res)
-            if (res.status == 429) {
-              await new Promise<void>((reso, rej) => {
-                setTimeout(async () => {
-                  await getmembers()
-                  reso()
-                }, (res.response?.data?.retry_after || 5) * 1000)
-              })
-            } else {
-              members = []
-            }
-          } else {
-            members = res
-            // await new Promise<void>((reso, rej) => { setTimeout(reso, ((members.length / 1000) * 3000)) })
-          }
-        }
-
-        await getmembers()
-        if (members == null) { members = [] }
-
-        members.forEach(member => discord_user_ids.add(member.user.id))
-        discord_members = discord_members.concat(members)
-        if (discord_user_ids.size > last_id_count) {
-          id_mixup = false
-          last_id_count = discord_user_ids.size
-        } else {
-          id_mixup = true
-        }
-
-        last_id = members[Math.max(members.length-1, 0)]?.user?.id
-        res_count = members.length
-        print(`members[${ind}]: `, members)
-        print(`last_id: `, last_id)
-        print(`discord_user_ids: `, discord_user_ids)
-      }
-    }
-
-    await BEEPCOMP.put("discord_members", JSON.stringify(discord_members), {expirationTtl: 60000})
-
-    return discord_members
-  } else {
-    let discord_members: any[] = JSON.parse(discord_members_string)
-    
-    return discord_members
-  }
-}
-
-export async function getAllUsers() {
-  const db = DB()
-
-  // DiscordBot.GET(`/users/${process.env.DISCORD_CLIENT_ID}`).then(console.log) // who tf are you
-
-  // let member_proms = process.env.VALID_SERVERS.split(",").map(guild_id => {
-  //   return DiscordBot.GET(`/guilds/${guild_id}/members?limit=1000`)
-  // })
-
-  // let proms = await Promise.all([
-  //   db.query.users.findMany(),
-  //   ...member_proms
-  // ])
-
-  // print("proms: ", proms)
-
-  const users = await db.query.users.findMany()
-  // let discord_members = proms.slice(1, proms.length).reduce((entry, last) => (entry || []).concat(last || []))
-  let discord_members = await _cacheDiscordMembers()
-
-  // print(discord_members)
-  
-  let returned_users = users.filter(user => user.participant).map(user => {
-    let discord_user = (discord_members.find((this_member: any) => this_member.user.id == user.id)?.user)
-    return {
-      id: user.id,
-      participant: user.participant,
-      ...discord_user
-    }
-  })
-
-  return returned_users
-}
+import { calcPoints } from "../modules/points"
+import rounds from "../rounds.json"
+import { avg, easeInOutCirc, sum } from '../lib/maths';
+import { Modifier, User, Vote } from "@beepcomp/core";
+import { getAllUsers } from "../modules/users";
+import { getCurrentRound, getRoundsObj } from "./rounds";
 
 Pointer.GET(AuthLevels.ALL, `/users`, async (req, c, pack) => {
-  print("USERS PLEASE")
+  const db = DB(c)
 
   let returned_users = await getAllUsers()
 
-  return returned_users
+  Global["participants"] = returned_users.filter(user => user.participant).map(user => user.id)
+
+  // Round Information
+  let round_id = null
+
+  let currentRound = getCurrentRound("start")
+  let visible_round = (getCurrentRound("end")?.id || -1)
+  print("visible_round: ", visible_round)
+
+  // Get all public submissions
+  let visible_submissions = await db.query.submissions.findMany({
+    where: lt(submissions.round, (visible_round + 1)),
+    with: {authors: true, votes: true, modifiers: {with: {modifier: true}}}
+  })
+
+  let visible_votes = ([] as Vote[]).concat(...visible_submissions.map(sub => sub.votes))
+  // let used_modifiers = ([] as Modifier[]).concat(...visible_submissions.map(sub => sub.modifiers.map(entry => entry.modifier)))
+  let used_modifiers: Modifier[] = []
+  let MOD_MAP: {[round: string]: {[key: string]: {ids: string[], count: number}}} = {}
+  visible_submissions.forEach(sub => {
+    if ((MOD_MAP[sub.round]) == null) { MOD_MAP[sub.round] = {} }
+    sub.modifiers.forEach(entry => {
+      let key = entry.modifier.text.toUpperCase()
+      if (MOD_MAP[sub.round][key] == null) { MOD_MAP[sub.round][key] = {ids: [], count: 0} }
+      MOD_MAP[sub.round][key].ids.push(entry.modifier.submitter)
+      MOD_MAP[sub.round][key].count += 1
+    })
+  })
+  // print("MOD_MAP: ", JSON.stringify(MOD_MAP, null, 2))
+
+  print(round_id)
+  print("visible_submissions: ", visible_submissions.map(({title, round}) => {
+    return {title, round}
+  })) 
+
+  let bonus_token_telemetry: string[] = []
+  let bonus_stats: {[id: string]: {amount: number, context: string}[]} = {}
+  const bonus_token_account = (idx: number, raw_amount: number, telemetry: string = '') => {
+    let user: User = returned_users[idx]
+    let amount = Math.round(raw_amount * 10)
+    bonus_token_telemetry.push(`[@${user.username}:${user.id}] ${amount >= 0 ? '+' : ''}${amount} | ${telemetry}`)
+    if (bonus_stats[user.id] == null) { bonus_stats[user.id] = [] }
+    bonus_stats[user.id].push({amount, context: telemetry})
+    returned_users[idx]["bonus_tokens"] += amount
+  }
+
+
+  // Point & Bonus Token calculation...
+  print(returned_users.map(user => user.id))
+  for (let idx = 0; idx < returned_users.length; idx++) {
+    returned_users[idx]["bonus_tokens"] = 0
+    
+    let user: User = returned_users[idx]
+    let this_guys_submissions = visible_submissions.filter(sub => {
+      return sub.authors.some(author => author.userId == user.id)
+    })
+
+    returned_users[idx]["points"] = sum(this_guys_submissions.map(sub => calcPoints(sub)).sort((a, b) => b - a).splice(0, 3))
+    returned_users[idx]["total_points"] = sum(this_guys_submissions.map(sub => calcPoints(sub)))
+    returned_users[idx]["submission_count"] = this_guys_submissions.length
+
+    for (let sub_idx = 0; sub_idx < this_guys_submissions.length; sub_idx++) {
+      let this_sub = this_guys_submissions[sub_idx]
+
+      if (typeof this_sub.artwork == "string" && this_sub.artwork.length > 0) { bonus_token_account(idx, 10, `Submitted artwork for Round #${this_sub.round}`) }
+
+      let challenge_sub = visible_submissions.find(sub => ((sub.submitter == this_sub.challengerId || sub.challengerId == this_sub.submitter) && sub.round == this_sub.round))
+      if (challenge_sub) {
+        // returned_users[idx]["bonus_tokens"] += 
+        let amount = (calcPoints(this_sub) > calcPoints(challenge_sub) ? 15 : -15)
+        bonus_token_account(idx, amount, (amount > 0 ? `Won a battle` : 'Lost a battle') + ` against @${returned_users.find(user => user.id == challenge_sub.submitter).username} in Round #${this_sub.round}`)
+      }
+
+      // returned_users[idx]["bonus_tokens"] += (this_sub.modifiers.length * 3)
+      let mod_count = (this_sub.modifiers.length * 3)
+      let mod_avg = ((avg(visible_votes.filter(vote => vote.submissionId == this_sub.id).map(vote => vote.modifiers)) / 10) || 0)
+      bonus_token_account(idx, (mod_count * easeInOutCirc(mod_avg)), `Used ${this_sub.modifiers.length} modifier${this_sub.modifiers.length > 0 ? 's' : ''} (${this_sub.modifiers.map(entry => entry.modifier.text).join(", ")}) and scored ${Math.round(mod_avg * 100)}% in Round #${this_sub.round}`)
+      // returned_users[idx]["bonus_tokens"] += (visible_votes.filter(vote => vote.sendingId).length)
+    }
+
+    let this_vote_count = (visible_votes.filter(vote => vote.sendingId == user.id).length)
+    bonus_token_account(idx, (this_vote_count * 0.3), `Voted ${this_vote_count} times`)
+  }
+  
+  Object.keys(MOD_MAP).forEach(round => {
+    let map = MOD_MAP[round]
+    let highest: Set<string> = new Set()
+    let current_high = 0
+    let highest_key = ""
+    Object.keys(map).forEach(key => {
+      let entry = MOD_MAP[round][key]
+      if (entry.count > current_high) {
+        highest.clear()
+        current_high = entry.count
+      }
+
+      if (entry.count == current_high) {
+        highest_key = key
+        entry.ids.forEach(id => highest.add(id))
+      }
+    })
+
+    print(highest)
+
+    highest.forEach(id => {
+      let idx = returned_users.findIndex(user => user.id == id)
+      bonus_token_account(idx, 10, `Submitted the most used modifier for Round ${round} (${highest_key})`)
+    })
+  })
+
+  print("bonus_token_telemetry: ", bonus_token_telemetry)
+
+  return {users: returned_users, bonus_stats}
 })
 
 Pointer.GET(AuthLevels.ONLY_DISCORD, `/users/@me`, async (req, c, pack) => {

@@ -59,11 +59,13 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/signup`, async (req, c, pack) => {
     submitter: pack.user.id
   })
 
-  let res = await Promise.all([
+  let res: any[] = []
+  let proms = [
     promNounModifier,
     promVerbModifier,
     promAdjectiveModifier
-  ])
+  ]
+  for await (const prom of proms) { let prom_res = await prom; res.push(prom_res) }
 
   // In Valid Servers for Participation?
   let {in_servers, main_server} = await pack.request_guilds()
@@ -84,7 +86,7 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/signup`, async (req, c, pack) => {
       final_proms.push(res1)
     }
     
-    await Promise.all(final_proms)
+    for await (const prom of final_proms) { await prom }
   }
 
   return [newUser].concat(res)

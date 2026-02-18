@@ -51,7 +51,7 @@ export async function acceptRequest(req: string | typeof requests.$inferSelect, 
   let did_something = false
 
   if (request.type == "collab") {
-    await Promise.all([
+    let proms = [
       db.delete(submissions).where(and(eq(submissions.submitter, request.receivingId), eq(submissions.round, request.round))),
       db.insert(usersToSubmissions).values({ userId: request.receivingId, submissionId: request.submissionId }),
       db.delete(requests).where(eq(requests.id, request.id)),
@@ -61,7 +61,9 @@ export async function acceptRequest(req: string | typeof requests.$inferSelect, 
         and(eq(requests.round, request.round), eq(requests.receivingId, request.sendingId)),
         and(eq(requests.round, request.round), eq(requests.receivingId, request.receivingId)),
       ))
-    ])
+    ]
+
+    for await (const prom of proms) { await prom }
 
     did_something = true
   }
@@ -73,7 +75,7 @@ export async function acceptRequest(req: string | typeof requests.$inferSelect, 
 
     // let other_submission = await db.query.submissions.findFirst({where: eq(submissions.id, (request.submissionId as string))})
     
-    await Promise.all([
+    let proms = [
       db.update(submissions).set({ challengerId: request.sendingId }).where(eq(submissions.id, submissionId)),
       db.update(submissions).set({ challengerId: request.receivingId }).where(eq(submissions.id, request.submissionId)),
       db.delete(requests).where(eq(requests.id, request.id)),
@@ -83,7 +85,9 @@ export async function acceptRequest(req: string | typeof requests.$inferSelect, 
         and(eq(requests.round, request.round), eq(requests.receivingId, request.sendingId)),
         and(eq(requests.round, request.round), eq(requests.receivingId, request.receivingId)),
       ))
-    ])
+    ]
+
+    for await (const prom of proms) { await prom }
 
     did_something = true
   }

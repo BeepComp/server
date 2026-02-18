@@ -1,4 +1,4 @@
-import { Round, SongURL, Submission, SubmissionDatabased, SubmissionRequest, SubmissionSchema } from "@beepcomp/core";
+import { Round, SongURL, Submission, SubmissionDatabased, SubmissionRequest, SubmissionSchema, Vote } from "@beepcomp/core";
 import { AuthLevel, AuthLevels, Pointer } from "../modules/hono";
 import rounds from "../rounds.json"
 import { modifiersToSubmissions, submissions, users, usersToSubmissions, modifiers, requests, votes } from '../db/schema';
@@ -6,10 +6,56 @@ import { DB } from "../modules/db";
 import snowflake from "../modules/snowflake";
 import { and, asc, eq } from "drizzle-orm";
 import { makeRequest } from "../modules/requests";
-import { getRoundsObj } from "./rounds";
+import { getCurrentRound, getRoundsObj } from "./rounds";
 import { DiscordBot2 } from "../modules/discord";
+import { obscureSubmission } from "../modules/obscure";
+import { calcPoints } from "../modules/points";
+import { Global } from "../modules/global";
+import { getUser } from "../modules/users";
 
-Pointer.GET(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
+Pointer.GET(AuthLevels.ALL, "/rounds/:round/submissions", async (req, c, pack) => {
+  // Get and Check Round
+  let raw_round = req.param("round")
+  if (raw_round == undefined) { return new Error("Round Invalid!") }
+  let round = Number.parseInt(raw_round)
+  let round_obj = getRoundsObj(round)
+  if (round_obj == undefined) { return new Error("Round Invalid!") }
+
+  // DB Worker
+  const db = DB(c)
+  
+  let these_submissions = await db.query.submissions.findMany({
+    where: eq(submissions.round, round),
+    with: { modifiers: true, votes: true, authors: true }
+  })
+
+  let these_users = await db.query.users.findMany({
+    where: eq(users.participant, true)
+  })
+
+  Global["participants"] = these_users.map(user => user.id)
+
+  let cleaned_submissions: any
+
+  cleaned_submissions = these_submissions.map(sub => {
+    let new_sub: any = sub
+    new_sub["score"] = calcPoints(sub as any)
+    return new_sub
+  })
+
+  print(Date.now())
+  print(round_obj.end)
+  let obfuscate = (Date.now() < round_obj.end && pack.auth_level < AuthLevel.DISCORD_ADMIN)
+  if (obfuscate) {
+    cleaned_submissions = cleaned_submissions.map(obscureSubmission)
+  }
+
+  // print(these_submissions)
+
+  return cleaned_submissions
+})
+
+Pointer.GET(AuthLevels.ONLY_DISCORD, `/rounds/:round/submit`, async (req, c, pack) => {
   if (pack.user == undefined) { return new Error("User Invalid!") }
 
   let raw_round = req.param("round")
@@ -57,7 +103,7 @@ Pointer.GET(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
 })
 
 
-Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => {
+Pointer.POST(AuthLevels.ONLY_DISCORD, `/rounds/:round/submit`, async (req, c, pack) => {
   // Check User
   if (pack.user == undefined) { return new Error("User Invalid!") }
   // Is Participant
@@ -69,22 +115,26 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
   let round = Number.parseInt(raw_round)
 
   // Check if Round Started
-  let id = 0
-  for (let ind = rounds.length - 1; ind >= 0; ind--) {
-    let TOURNAMENT_EPOCH = Number(process.env.TOURNAMENT_EPOCH)
-    let start = TOURNAMENT_EPOCH + (604800000 * ind)
-    if (Date.now() > start) {
-      id = ind + 1
-      break
-    }
-  }
+  let current_round = getCurrentRound()
+  if (current_round == null) { return new Error("Is The Tournament Even Happening??...") }
   
-  if (round > id) { return new Error("Round Not Even Started Yet...") }
+  if (round > current_round.id) { return new Error("Round Not Even Started Yet...") }
 
   // Check if Round is Still in Open Phase!
-  let current_round = getRoundsObj(round)
-  if (current_round == undefined) { return new Error("Round Invalid!") }
-  if (Date.now() > current_round.vote) { return new Error("Round No Longer Accepting Submissions!") }
+  let this_round = getRoundsObj(round)
+  if (this_round == undefined) { return new Error("Round Invalid!") }
+  if (Date.now() > this_round.vote) { return new Error("Round No Longer Accepting Submissions!") }
+
+  // Eliminated??
+  let typed_round: 5 | 6 | 7 | 8 = (round as 5 | 6 | 7 | 8)
+  let bracket_key: ("round_5_bracket" | "round_6_bracket" | "round_7_bracket" | "round_8_bracket") = `round_${typed_round}_bracket`;
+  if (round >= 5) { // isPhase2
+    print("bracket_key: ", bracket_key)
+    print("pack.user[bracket_key]: ", pack.user[bracket_key])
+    if (pack.user[bracket_key] == 0) {
+      return new Error("You're Eliminatedd, Wrap it Uuuuppppp")
+    }
+  }
 
   // DB Worker
   const db = DB(c)
@@ -94,6 +144,7 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
 
   // Get Previous Submission For Round to Replace OR update
   let updating = false
+  let keepId = null
   let keeping = false
   let user = await db.query.users.findFirst({
     where: eq(users.id, pack.user.id),
@@ -108,6 +159,9 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
       }}
     }
   })
+
+  let inserts: Promise<any>[] = []
+  
   let problem_submission = user?.submissions.find(this_submission => {
     return (this_submission.submission.round == round)
   })
@@ -118,16 +172,22 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
       updating = true
     } else if (problem_submission.submission.challengerId != null) { // UPDATE
       newID = problem_submission.submissionId
+      let keepId = problem_submission.submission.challengerId
       keeping = true
     } else {
-      await db.delete(submissions).where(eq(submissions.id, problem_submission.submissionId))
+      print("Deleting Problem Submission(s)...")
+      inserts.push(db.delete(submissions).where(and(eq(submissions.submitter, pack.user.id), eq(submissions.round, round))))
     }
+  } else {
+    print("Deleting AMY POSSIBLE Problem Submission(s)...")
+    inserts.push(db.delete(submissions).where(and(eq(submissions.submitter, pack.user.id), eq(submissions.round, round))))
   }
+
   print("updating or keeping?", updating, keeping)
   let thistest = !(updating || keeping)
 
   if (!thistest && problem_submission != null) {
-    await db.delete(modifiersToSubmissions).where(eq(modifiersToSubmissions.submissionId, problem_submission.submissionId))
+    inserts.push(db.delete(modifiersToSubmissions).where(eq(modifiersToSubmissions.submissionId, problem_submission.submissionId)))
     // let clearModifierRelationsProms: Promise<any>[] = []
     // problem_submission.submission.modifiers.forEach(entry => {
     //   clearModifierRelationsProms.push()
@@ -147,28 +207,32 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
   // Database Submission Data
   print("thistest", thistest)
   if (thistest) {
-    newID = (await db.insert(submissions).values({
-      id: snowflake(),
+    newID = snowflake()
+    inserts.push(db.insert(submissions).values({
+      id: newID,
       title: submission.title,
       link: submission.link,
       desc: submission.desc,
+      artwork: submission.artwork,
+      audio: submission.audio,
       round,
       submitter: pack.user.id
-    }).returning({ id: submissions.id }))[0].id
+    }))
   } else {
     let thisSubmissionObj: any = {...submission}
-    if (keeping) {
-      thisSubmissionObj["challengerId"] = (keeping ? problem_submission?.submission?.challengerId : null)
-    }
-    await db.update(submissions).set(thisSubmissionObj).where(eq(submissions.id, newID))
-  }
 
+    if (keeping) {
+      thisSubmissionObj["challengerId"] = (keeping ? keepId : null)
+    }
+    inserts.push(db.update(submissions).set(thisSubmissionObj).where(eq(submissions.id, newID)))
+  }
+  
   // Database Submission Authors
   let userId = pack.user.id
   let submissionId = (newID)
 
-  let inserts: Promise<any>[] = []
   if (thistest) {
+    print("userId, submissionId: ", userId, submissionId)
     inserts.push(db.insert(usersToSubmissions).values({
       userId,
       submissionId
@@ -186,21 +250,43 @@ Pointer.POST(AuthLevels.ONLY_DISCORD, `/submit/:round`, async (req, c, pack) => 
     (modifierId: string) => ({ modifierId, submissionId })
   )
   print("modifierValues", modifierValues)
-  inserts.push( db.insert(modifiersToSubmissions).values(modifierValues) )
+  if (modifierValues.length > 0) { inserts.push( db.insert(modifiersToSubmissions).values(modifierValues) ) } 
   inserts.push(DiscordBot2.send_message_outer(`<@${pack.user.id}> - ${JSON.stringify(modifierValues)}`, "1390854178523320410"))
 
   // Send Out Requests
-  if (!updating && !keeping && submission.request_type != null && submission.request_receivingId != null) {
-    inserts.push(makeRequest(
-      submission.request_type,
-      userId,
-      submission.request_receivingId,
-      submissionId,
-      round
-    ))
+  if ((submission as any).request_type == "") { submission.request_type = null }
+  if ((submission as any).request_receivingId == "") { submission.request_type = null }
+  function sendRequest() {
+    if (!updating && !keeping && submission.request_type != null && submission.request_receivingId != null) {
+      inserts.push(makeRequest(
+        submission.request_type,
+        userId,
+        submission.request_receivingId,
+        submissionId,
+        round
+      ))
+    }
+  }
+  if (submission.request_type == "collab" && round >= 5) {
+    let receivingUser = await getUser(submission.request_receivingId || "")
+    if (receivingUser == null) {
+      return new Error("Invalid Collab User!")
+    } else if (receivingUser[bracket_key] == 0) {
+      return new Error("Collab User is Eliminated!!")
+    } else if (receivingUser[bracket_key] == pack.user[bracket_key]) {
+      return new Error("Can't Collab Within The Same Bracket!!")
+    } else {
+      sendRequest()
+    }
+  } else {
+    sendRequest()
   }
 
-  await Promise.all(inserts)
+  // print(inserts)
+  for await (const prom of inserts) { // hmm....
+    await prom
+  }
+  // await Promise.all(inserts)
 
   return {id: newID}
 })

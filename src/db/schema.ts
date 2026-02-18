@@ -8,8 +8,12 @@ import { bigint, boolean, integer, pgTable, primaryKey, serial, text, varchar, r
 
 export const users = pgTable('users', {
   id: text('id').primaryKey(), // <- Discord Snowflake ID 
-  participant: boolean('participant'),
+  participant: boolean('participant').notNull(),
   // ... I guess the rest of the info is from discord API
+  round_5_bracket: integer("round_5_bracket").default(0),
+  round_6_bracket: integer("round_6_bracket").default(0),
+  round_7_bracket: integer("round_7_bracket").default(0),
+  round_8_bracket: integer("round_8_bracket").default(0),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -29,9 +33,9 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const modifiers = pgTable('modifiers', {
 	id: text('id').primaryKey(),
-  type: text({enum: ["noun", "verb", "adjective"]}),
-  text: text("text"),
-  submitter: text("submitter").references(() => users.id, {onDelete: 'cascade'}),
+  type: text({enum: ["noun", "verb", "adjective"]}).notNull(),
+  text: text("text").notNull(),
+  submitter: text("submitter").references(() => users.id, {onDelete: 'cascade'}).notNull(),
 });
 
 export const modifiersRelations = relations(modifiers, ({ many }) => ({
@@ -51,6 +55,8 @@ export const submissions = pgTable('submissions', {
   link: text("link").notNull(),
   // player_link: text("player_link"), // too late 🥀
   desc: text("desc").notNull(),
+  artwork: text("artwork"),
+  audio: text("audio"),
   round: integer("round").notNull(),
   challengerId: text("challengerId"),
   submitter: text("submitter").notNull().references(() => users.id, {onDelete: 'cascade'})
